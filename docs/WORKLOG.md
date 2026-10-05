@@ -162,3 +162,12 @@
 테스트
 - 단위 테스트 +14 (화면 데이터 개발자 용어 스윕, 기본 운 밸런스, 경계/시간 미상 표시, 공유 문구, 피드백 검증·레코드·저장소·지표, 이벤트 track·지표, 웹 코드 Mock/난수 검사) → 총 176 통과. `tsc` 는 엔진 + 웹(DOM) 두 설정 모두 통과.
 - 테스트 변경 기록: `premium.test.ts` 이벤트 목록 9→12종(관심 이벤트), 상품명 "직업·사업".
+
+## 2026-10-05 — 외부 서비스 연결 상태 점검 + Vercel 설정
+
+- GitHub: 정상 (main push 가능).
+- Vercel: 프로젝트 `play-5e80/palja-play` 가 GitHub 저장소와 이미 연결되어 있었고, main push 마다 **Production 배포가 자동 시도**되고 있었다 (GitHub commit status 로 확인). 배포 주소는 모두 Vercel 로그인(SSO) 보호로 외부 비공개. `palja-play.vercel.app` 은 404.
+  - Phase 6 까지는 build 스크립트가 없어 저장소 파일을 그대로 정적 배포(성공 표시), Phase 7(`547d4fa`)부터 `npm run build` 결과가 `dist/` 인데 Vercel 기본 출력 폴더를 찾아 **실패**.
+  - 사용자 결정에 따라 `vercel.json` 추가: install `npm ci`, build `npm run build`, output `dist`, **main 자동 배포 끔**(`git.deploymentEnabled.main=false`, Phase 9 QA 승인 후 다시 켬), 기본 보안 헤더.
+- Supabase: 코드·설정에 연결 없음. 사용자에게 Project URL + anon key 를 받아 연결 예정 (service_role 키는 받지 않음).
+- 내장 브라우저는 Vercel/Supabase 에 로그인되어 있지 않아 대시보드는 확인하지 못함 (비밀번호 입력은 하지 않음).
