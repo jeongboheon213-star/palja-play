@@ -43,7 +43,9 @@ Validation → CalendarProvider → TimeNormalizer → SolarTermProvider → Saj
 - 이름: 사주팔자PLAY. 결과 끝은 "친구와 배틀하기"(`src/lib/battle`).
 - Phase 9 QA 완료(`docs/QA_REPORT.md`). Vercel main 자동 배포 꺼짐, Supabase 연결됨(SUPABASE_* 자동 사용).
 
-## 다음: Production 배포 (사용자 승인 대기)
+## 최신 상태·다음 할 일: docs/HANDOFF.md (2026-10-05, 무료 Beta LIVE · 결제 OFF)
+
+## (과거) Production 배포 전 메모
 Production 전 필수: 실제 피드백 저장소·분석 저장처 결정/연결, 배포처 결정, 공개 URL(`PALJA_PUBLIC_URL`), Safari 실기 확인.
 
 ## 명령
