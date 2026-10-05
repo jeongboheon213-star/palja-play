@@ -35,13 +35,17 @@ Validation → CalendarProvider → TimeNormalizer → SolarTermProvider → Saj
 - 테스트·tsc 통과 (개수는 docs/WORKLOG.md). 환경 비교: `tests/tools/env-hash*.ts`.
 
 - Phase 6 완료: PREMIUM 미리보기(WHY/HOW 한 줄 + WHEN 준비 중), 3종 리포트 4,900원(Beta 테스트 가격, 결제 없음), 이벤트 이름·sink 구조(`src/lib/analytics/events.ts`). 진입점 `engine.computeBetaResult()`.
-- 3C~6 통합 보고 완료 → **사용자 승인 후** Phase 7(UI)·8(피드백/분석) 진행.
+- 3C~6 승인됨.
+- Phase 7 완료: `web/`(미리보기 디자인 재사용, Mock 제거, 한 페이지 흐름), esbuild 빌드(`scripts/build.mjs`), debug 화면은 dev 빌드에만. 화면 문구에 개발자 용어 금지(`src/lib/ui/resultView.ts` DEV_TERMS). "운의 흐름" 화면명 = "기본 운 밸런스".
+- Phase 8 완료: 이벤트 12종 `track()` 추상화, 피드백 레코드(개인정보 없음, resultId UUID + 버전) + `FeedbackRepository`. dev = localStorage(개발 표시), production = 미설정(저장한 척 금지). 외부 분석/저장소 미연결.
+- E2E: `npm run e2e` (Edge headless + CDP, 추가 패키지 없음), 캡처 `docs/screenshots/`.
 
-## 다음: Phase 7 Web UI + Phase 8 Feedback/Analytics (승인 대기)
-`팔자PLAY 미리보기.html`(작업 폴더 상위) 디자인 유지(dark purple/gold/jade, 모바일 우선, 카드, 계산 애니메이션, 캐릭터 카드, 능력치, premium lock). Mock 계산 제거하고 `computeBetaResult` 연결. "팔자PLAY Beta" 표시, 결과 하단 `BETA_DISCLAIMER`. 피드백(1~5점, 잘 맞은/안 맞은 영역, 자유 의견)은 생년월일 대신 resultId + versions 로 저장. 이벤트 9종. 외부 분석 서비스 가짜 연결 금지.
+## 다음: Phase 9 QA (승인 대기) → Production 배포 직전 멈춤
+Production 전 필수: 실제 피드백 저장소·분석 저장처 결정/연결, 배포처 결정, 공개 URL(`PALJA_PUBLIC_URL`), Safari 실기 확인.
 
 ## 명령
-- `npm install` 후 `npm run check` (typecheck + test). Node.js LTS 필요 (Windows 설치 경로 `C:/Program Files/nodejs`, Git Bash 에서는 PATH 에 추가 필요).
+- `npm install` 후 `npm run check` (typecheck 엔진+웹 + test). Node.js LTS 필요 (Windows 설치 경로 `C:/Program Files/nodejs`, Git Bash 에서는 PATH 에 추가 필요).
+- `npm run dev` / `npm run build` / `npm run e2e`.
 - 환경 비교: `TZ=UTC npx tsx tests/tools/env-hash.ts` (해시가 TZ/locale과 무관해야 함)
 
 ## 알려진 위험

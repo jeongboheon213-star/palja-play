@@ -116,3 +116,49 @@
 
 테스트 변경 기록
 - `policies.test.ts` 의 PRODUCTS 테스트: Phase 2 단일 `premium_report`(모의 결제) → Beta 3종 리포트(결제 없음) 구조로 교체.
+
+## 2026-10-05 — Phase 8: Feedback + Analytics (라이브러리)
+
+만든 것
+- `src/lib/analytics/events.ts`: 이벤트 12종 (landing_view, input_start, calculation_complete, result_view, share_click, premium_{money,love,career}_click, premium_{money,love,career}_interest, feedback_submit). `track(event, props, resultId)` 추상화(`createTracker`), 여러 sink 동시 전송, sink 오류는 흐름을 막지 않음. 개인정보 키(birth*/date/time/gender/name/phone/email/comment) 제거 — 처음 정규식이 `timeKnown` 같은 정상 키까지 지워 정확 일치 방식으로 수정. 퍼널 지표 계산(방문→입력, 입력→결과, 결과→공유/Premium 클릭/관심).
+- `src/lib/feedback/feedback.ts`: 피드백 레코드 = resultId(UUID) + feedbackId(UUID) + 버전 묶음 6종 + 비식별 결과 특성(캐릭터 id, 시간 입력 여부, 경계 안내 여부, 불확실 기둥 수) + 만족도 1~5 + 잘 맞은/안 맞은 영역(복수, "없음") + 공유 의향(아니요/아마도/네) + 한마디(500자). 생년월일·시각·성별·이름 없음. `FeedbackRepository` 인터페이스 + 메모리 저장소 + **미설정 저장소(저장한 척하지 않고 NOT_CONFIGURED)**. 만족도 지표(평균, 5점 비율, 영역별, 공유 의향, 버전별 평균).
+- 상품 설정에 `interestEvent`, 질문형 `hook` 추가. "직업/사업" → "직업·사업".
+- 안내 문구: 경계 안내를 "출생 시각이 절기 경계와 가까워 Beta 계산 기준에 따라 일부 결과가 달라질 수 있어요."로, 시간 미상 안내에 "출생 시간을 입력하면 더 세밀한 결과를 볼 수 있어요." 추가.
+
+## 2026-10-05 — Phase 7: Web UI
+
+새 dependency
+- `esbuild@0.28.2` (devDependency). 이유: TypeScript 엔진 + 화면 코드를 브라우저용 JS 한 파일로 묶기 위함. Next.js/React 마이그레이션 없음. npm 이 esbuild 의 postinstall 스크립트를 보류했지만 플랫폼 바이너리 패키지로 정상 동작 확인 (`npx esbuild --version` 0.28.2).
+
+만든 것
+- `web/index.html`: 미리보기(`팔자PLAY 미리보기.html`) 디자인 토큰·컴포넌트 재사용 — dark purple(#171936/#20234a), gold(#FFB347), jade(#4ED1B0), Do Hyeon + Noto Sans KR, 카드, 회전 orb 계산 애니메이션, 캐릭터 카드, 능력치 막대(→ 10칸 게임 스탯 블록), 잠금(blur) 카드, 토스트, 모바일 우선(최대 460px, 데스크톱 520px).
+- 미리보기의 Mock 계산(간이 일주, 난수 능력치, 고정 문구, Mock 결제, "샘플" 표시) 전부 제거. 결과는 `computeBetaResult` 만 사용.
+- 흐름(한 페이지): Landing → 입력 → 계산 애니메이션 → 결과(캐릭터 → 한 줄 설명 → 핵심 성향 → 7개 능력치 → 강점/주의점 → 오행(+접힌 여덟 글자) → 재물·연애·직업·사업·인간관계 → 반전 → 키워드 → Premium → Feedback → Share → Beta 안내).
+- 입력: 생년월일(1962-01-01~오늘 KST), 양력(음력 "Beta 준비 중" disabled), 출생 시간 + "시간을 몰라요", 성별(기본값 없음), 대한민국 고정(해외 "Beta 준비 중"). 검증은 기존 `validateSajuInput`. 서머타임 gap 은 안내, overlap 은 "서머타임/표준시" 선택 버튼.
+- "운의 흐름"은 화면에서 **"기본 운 밸런스"** + "올해·이번 달 운세가 아니에요" 안내 (내부 키 flow 유지).
+- Premium: "여기까지가 무료 팔자풀이 / 그래서 왜 나는 이럴까?" → 3개 카드(질문형 hook, 4,900원 Beta 테스트 가격, WHY 미리보기 1줄, HOW 잠금, 시기 준비 중) → 버튼 누르면 바텀시트("팔자PLAY Beta / 이 리포트는 현재 준비 중이에요 …") + `premium_*_click`, 시트의 "이 리포트가 나오면 보고 싶어요" → `premium_*_interest`.
+- Feedback: "솔직히, 얼마나 나 같았나요?" 😕😐🙂😮🤯 1~5, 잘 맞은 부분(복수), 안 맞은 부분(+없음), 친구 공유 의향, 한마디. 강제 없음(만족도 고르면 제출 가능).
+- Share: Web Share API → 없으면 클립보드 → 둘 다 안 되면 직접 복사용 문구. 문구·공유 카드(브랜드, 캐릭터, 한 줄, 상위 3개 능력치)에 생년월일·시간·간지 없음. 공개 URL 은 빌드 시 `PALJA_PUBLIC_URL`.
+- resultId/feedbackId/sessionId: 브라우저 `crypto.randomUUID` (web/src/runtime.ts). 사주 계산과 분리(계산 코드에는 난수 없음, 테스트로 강제).
+- 화면용 변환 `src/lib/ui/resultView.ts`(개발자 용어 → 자연어), 공유 `src/lib/share/share.ts` — DOM 없이 단위 테스트.
+- 저장소/분석 adapter (web/src/runtime.ts, config.ts)
+  - development: 분석 = memory + console, 피드백 = 이 브라우저 localStorage(`palja-dev-feedback-v1`) + 화면에 "Beta 개발 환경: … 운영 서버로 전송되지 않아요" 표시, 상단 "개발 환경" 배지.
+  - production: 분석 = memory(외부 전송 없음), 피드백 = 미설정(저장 안 됨을 그대로 안내). → Phase 9~10 에서 실제 저장소 결정 필요.
+- Debug: `debug.html` (Raw SajuData, 기둥 표, confidence, boundaryRisk, Signals, Scores, FREE/PREMIUM, provenance, 검증 상태, 자시 정책·overlap 선택). **개발 빌드(dist-dev)에만** 생성. production 빌드에는 debug 파일과 개발 hook 코드가 없음(번들 검사로 확인).
+- 빌드: `npm run build`(→ dist/, 108.5KB) / `npm run build:dev`(→ dist-dev/) / `npm run dev`(http://127.0.0.1:5173, debug: /debug.html).
+
+브라우저 테스트 (`npm run e2e`, `scripts/e2e.mjs`)
+- 추가 패키지 없이 설치된 Microsoft Edge(Edg/154) headless 를 DevTools Protocol 로 직접 조작 (Playwright 미설치).
+- 28개 확인 모두 통과, 페이지/콘솔 오류 0, 화면 캡처 20장 `docs/screenshots/`.
+- 범위: 모바일 390x844 / 데스크톱 1280x900, 정상 입력, 빈 입력·1961·미래 날짜, 서머타임 gap·overlap, 시간 미상, 절기 경계(2020-02-04 17:50), 입춘 당일 시간 미상(연·월주 "?"), 1962-01-01, 새로고침, Premium 클릭/관심 분리, 피드백 저장 레코드 개인정보 검사, 공유 3경로, 개발자 용어 미노출, 가로 넘침 없음, debug 화면, production 빌드에 debug 없음.
+- production 빌드도 로컬 서버에서 수동 확인: 계산·결과 정상, /debug.html 404, 개발 hook 없음, 피드백 "저장소 준비 중" 안내.
+
+캡처로 발견해 고친 UX 문제
+- 긴 토스트가 둥근 알약 모양으로 커지며 내용을 가림 → 모서리·최대 폭 조정.
+- 데스크톱에서 상단 바(460px)와 본문(520px) 폭 불일치 → 맞춤.
+- Premium 잠긴 항목 수가 WHY·HOW 를 이중으로 셈("외 12개") → 추가 근거 수만 표시.
+- Windows 에서 🇰🇷 국기 이모지가 "KR" 글자로 보임 → 이모지 제거.
+
+테스트
+- 단위 테스트 +14 (화면 데이터 개발자 용어 스윕, 기본 운 밸런스, 경계/시간 미상 표시, 공유 문구, 피드백 검증·레코드·저장소·지표, 이벤트 track·지표, 웹 코드 Mock/난수 검사) → 총 176 통과. `tsc` 는 엔진 + 웹(DOM) 두 설정 모두 통과.
+- 테스트 변경 기록: `premium.test.ts` 이벤트 목록 9→12종(관심 이벤트), 상품명 "직업·사업".

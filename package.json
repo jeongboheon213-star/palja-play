@@ -1,16 +1,21 @@
 {
   "name": "palja-play",
-  "version": "0.1.0-alpha",
+  "version": "0.2.0-beta",
   "private": true,
   "type": "module",
   "description": "팔자PLAY Alpha v0.1 - 계산/데이터/해석 계층 (순수 TypeScript)",
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p web/tsconfig.json",
     "test": "tsx --test tests/*.test.ts",
-    "check": "npm run typecheck && npm run test"
+    "check": "npm run typecheck && npm run test",
+    "build": "node scripts/build.mjs",
+    "build:dev": "node scripts/build.mjs --dev",
+    "dev": "node scripts/build.mjs --dev --serve",
+    "e2e": "node scripts/build.mjs --dev && node scripts/e2e.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "esbuild": "^0.28.2",
     "tsx": "^4.21.0",
     "typescript": "^6.0.0"
   }
