@@ -21,6 +21,7 @@ export const VERIFICATION_LEVELS: readonly VerificationLevel[] = [
 
 export type VerificationItemId =
   | "dayPillar"
+  | "solarTerms"
   | "monthPillarSolarTerm"
   | "yearPillar"
   | "hourPillar"
@@ -44,6 +45,10 @@ export const VERIFICATION_STATUS: VerificationStatus = Object.freeze({
   dayPillar: Object.freeze({
     level: "verified-internally",
     note: "1930-01-01~2026-10-04 (35,341일) 두 독립 공식 간 일치만 확인. 외부 기준 대조 아님.",
+  }),
+  solarTerms: Object.freeze({
+    level: "not-verified",
+    note: "AlphaSolarTermProvider는 자체 계산(internal-alpha)이며 외부 기준과 대조하지 않았다. 정밀도(출력 단위)와 정확도는 별개다.",
   }),
   monthPillarSolarTerm: Object.freeze({
     level: "not-verified",

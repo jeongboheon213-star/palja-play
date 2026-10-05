@@ -24,10 +24,22 @@ export interface TimePolicy {
   readonly jasiPolicy: JasiPolicy;
 }
 
+export type BoundaryWarningReason = "alpha-provisional";
+
+/**
+ * 서비스 경고 범위. 계산 정확도의 기준이 아니다.
+ * 범위 안이라고 계산이 틀렸다는 뜻도, 범위 밖이라고 정확하다는 뜻도 아니다.
+ * Alpha 단계에서 경계에 가까운 결과를 보수적으로 표시하기 위한 서비스 정책일 뿐이다.
+ */
+export interface BoundaryWarningPolicy {
+  readonly minutes: number;
+  readonly reason: BoundaryWarningReason;
+  readonly meaning: "service-warning-window-not-an-accuracy-bound";
+}
+
 export interface SolarTermPolicy {
   readonly provider: SolarTermProviderId;
-  /** 절입 시각과의 거리가 이 분 이내면 boundaryWarning. 잠정값. */
-  readonly boundaryWarningMinutes: number;
+  readonly boundaryWarning: BoundaryWarningPolicy;
   /** 시간 미상 + 절입 당일: 추측하지 않고 시간을 요청한다. */
   readonly unknownTimeOnTermDay: "needs-birth-time";
 }
@@ -70,7 +82,7 @@ export const ALPHA_POLICY: Policy = deepFreeze({
   },
   solarTerm: {
     provider: "alpha",
-    boundaryWarningMinutes: 30,
+    boundaryWarning: { minutes: 30, reason: "alpha-provisional", meaning: "service-warning-window-not-an-accuracy-bound" },
     unknownTimeOnTermDay: "needs-birth-time",
   },
   twelveStageRule: "unverified",

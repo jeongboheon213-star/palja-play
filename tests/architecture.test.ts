@@ -30,8 +30,19 @@ test("계층 의존 방향: interpretation은 saju 타입만 의존, validation�
   }
 });
 
-test("Phase 2에는 사주 계산 코드가 없다 (간지 표/절기 데이터 파일 없음)", () => {
-  for (const f of files) assert.ok(!/pillars|solarTermProvider|calculator\.ts/i.test(f), f);
+test("기둥 계산기/사주 계산기 파일은 아직 없다 (Phase 3C 이전)", () => {
+  for (const f of files) assert.ok(!/pillars|calculator\.ts/i.test(f), f);
+});
+
+test("절기 계층은 연주/월주/일주/시주 계산을 하지 않는다", () => {
+  for (const { f, text } of src.filter((s) => /solarTerm|astronomy|angles/i.test(s.f))) {
+    assert.ok(!/calculate(Year|Month|Day|Hour)Pillar|\bganji\b|60갑자/i.test(text), f);
+  }
+});
+
+test("절기 관련 과장 표현 금지", () => {
+  const banned = [/정확한 절기/, /검증된 절입/, /KASI 기준과 동일/, /verified solar terms/i, /accurate solar terms/i];
+  for (const { f, text } of src) for (const re of banned) assert.ok(!re.test(text), `${f}: ${re}`);
 });
 
 test("계산 계층(lib/saju)은 Date 객체 생성·시계 호출을 하지 않는다", () => {

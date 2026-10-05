@@ -18,16 +18,17 @@ Validation → CalendarProvider → TimeNormalizer → SolarTermProvider → Saj
 
 ## 현재 상태
 - Phase 2 완료(승인): 타입·정책·검증 상태·입력 검증·PRODUCTS·버전.
-- Phase 3A 완료(확인 대기): 한국 시간 이력 + TimeNormalizer (gap/overlap/시간 미상, tzdata 대조 10,704건 일치, TZ 3종 해시 동일).
-- 테스트 50개 통과, tsc 통과.
+- Phase 3A 완료(승인): 한국 시간 이력 + TimeNormalizer (gap/overlap/시간 미상).
+- Phase 3B 완료(확인 대기): 24절기 정의 + AlphaSolarTermProvider(internal-alpha, not-verified) + 절기 컨텍스트(시간 미상 → uncertain/NEEDS_BIRTH_TIME_FOR_SOLAR_TERM_DAY). 연주/월주는 아직 없음.
+- 외부 기준 대조(KASI 등): NOT RUN. 확보하면 `tests/fixtures/solar-term-reference.json` 에 넣는다(가짜 데이터 금지).
+- 테스트 82개 통과, tsc 통과. 환경 비교: `tests/tools/env-hash.ts`, `tests/tools/env-hash-solar.ts`.
 
-## 다음: Phase 3B (사용자가 시작을 확인하면)
-AlphaSolarTermProvider(not-verified, 자체 계산, 이름/termInstantUtc/이전·다음 절기/경계 거리/boundaryWarning/provider 이름·버전), `boundaryWarningMinutes`를 `reason: "alpha-provisional"` 정책값으로, 시간 미상+절입 당일은 `effectiveDayRangeUtc`로 판정(uncertain/unavailable + 구조화 warning, 결과 페이지는 막지 않음), 절입 경계 테스트(1분 전/정각/1분 후/30분 전/후, 입춘 강화).
-이후 3C(네 기둥, 일주는 기존 독립 공식 1930-01-01~2026-10-04 재대조, verified-internally 초과 금지), 3D(십성/12운성/합충형, 해석과 분리), 그 뒤 Signals·점수·FREE/PREMIUM·UI.
+## 다음: Phase 3C (사용자가 시작을 확인하면)
+네 기둥을 각각 독립 함수로(calculateYearPillar/MonthPillar/DayPillar/HourPillar). 연/월주는 SolarTermProvider 결과만 소비한다(절기 계산 코드를 넣지 않는다). 각 결과에 stem/branch/ganji/confidence/evidence/policy 의존성/verification 포함. 일주는 기존 독립 공식과 1930-01-01~2026-10-04 전체 재대조(verified-internally 초과 금지). 이후 3D(십성/12운성/합충형, 해석과 분리), 그 뒤 Signals·점수·FREE/PREMIUM·UI.
 
 ## 명령
 - `npm install` 후 `npm run check` (typecheck + test). 설치 후 `tests/node-shim.d.ts` 삭제.
 - 환경 비교: `TZ=UTC npx tsx tests/tools/env-hash.ts` (해시가 TZ/locale과 무관해야 함)
 
 ## 알려진 위험
-시간 이력은 tzdata 단일 출처(not-verified) / 1961-08-10은 범위 밖 처리 / 1954-03-21 출처 간 30분 불일치(범위 밖) / 시간 미상+경도 보정 ON 시 날짜 불확실 / overlap 시각 UX 미정.
+절기 모델 오차 미측정(수 분~최대 약 15분 가능, 외부 대조 전) / 시간 이력은 tzdata 단일 출처(not-verified) / 1961-08-10은 범위 밖 처리 / 1954-03-21 출처 간 30분 불일치(범위 밖) / 시간 미상+경도 보정 ON 시 날짜 불확실 / overlap 시각 UX 미정.

@@ -100,9 +100,11 @@ export type { Policy, VerificationStatus, VerificationLevel };
 export type CalculationConfidence = "confirmed" | "uncertain" | "unavailable";
 
 /** 화면 문구와 분리된 구조화 경고. 문구는 UI 계층이 정한다. */
-export type CalculationWarningCode = "SOLAR_TERM_DAY_TIME_UNKNOWN" | "SOLAR_TERM_BOUNDARY_NEAR";
+export type CalculationWarningCode = "NEEDS_BIRTH_TIME_FOR_SOLAR_TERM_DAY" | "SOLAR_TERM_BOUNDARY_NEAR";
 
 export interface CalculationWarning {
   readonly code: CalculationWarningCode;
   readonly affects: readonly PillarPosition[];
+  /** 관련 절기 id (있으면) */
+  readonly termIds?: readonly string[];
 }
