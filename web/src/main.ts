@@ -7,20 +7,9 @@ import { toResultView, RESULT_ERROR_TEXT, type ResultView, type PremiumCardView 
 import { deriveSignals } from "../../src/lib/interpretation";
 import { PREMIUM_SPECS } from "../../src/lib/engine";
 import { PAYMENTS_ENABLED, PAYMENTS_MODE, startCheckout, handlePaymentReturn, fetchReport, findStoredPurchase, rememberRestoredPurchase, type PremiumReport, type StoredPurchase } from "./payments";
-import {
-  battleCardFrom,
-  battleFromHash,
-  battleUrl,
-  buildBattleShareText,
-  characterById,
-  compareBattle,
-  sanitizeNickname,
-  withJosa,
-  normalizeKoreanMobile,
-  buildSmsUri,
-  NICKNAME_MAX,
-  type BattleCard,
-} from "../../src/lib/battle/battle";
+import { battleCardFrom, characterById, compareBattle, sanitizeNickname, withJosa, normalizeKoreanMobile, buildSmsUri, NICKNAME_MAX, type BattleCard } from "../../src/lib/battle/battle";
+import { battleFromLocation, createBattleShare, type BattleShare } from "../../src/lib/battle/share";
+import { copyText, hasWebShare, isMobileDevice, qrSvg, shareKakao, KAKAO_ENABLED } from "./shareTools";
 import { buildFeedbackRecord, FEEDBACK_AREAS, FEEDBACK_AREA_LABELS, type FeedbackArea, type FeedbackDraft, type ShareIntent } from "../../src/lib/feedback/feedback";
 import type { EventName } from "../../src/lib/analytics/events";
 import type { OverlapChoice } from "../../src/lib/saju/providers";
@@ -71,27 +60,36 @@ let gender: "male" | "female" | null = null;
 let inputStarted = false;
 
 // ── 랜딩 ──────────────────────────────────────────────────
-if (APP_CONFIG.isDev) $("#devflag").hidden = false;
+// 개발 빌드에서만 "개발 환경" 표시 (production 빌드에는 이 코드도, 표시 요소도 없다)
+declare const __PALJA_ENV__: "development" | "production";
+if (__PALJA_ENV__ === "development") {
+  const flag = h("span", { class: "devflag", id: "devflag" }, "개발 환경");
+  document.querySelector(".top .in")?.appendChild(flag);
+}
 
-// 배틀 링크(#b=…)로 들어왔는가. 잘못된 링크면 배틀 없이 평소처럼 진행한다.
-const hadBattleHash = /^#b=/.test(location.hash);
-const challenger: BattleCard | null = battleFromHash(location.hash);
-rt.track("landing_view", { via: challenger ? "battle" : hadBattleHash ? "battle-invalid" : "direct" });
+// 배틀 링크(?b=… 새 형식 / #b=… 예전 형식)로 들어왔는가. 잘못된 링크면 배틀 없이 평소처럼 진행한다.
+const battleLink = battleFromLocation(location.search, location.hash);
+const challenger: BattleCard | null = battleLink.kind === "valid" ? battleLink.card : null;
+rt.track("landing_view", { via: battleLink.kind === "valid" ? (battleLink.legacy ? "battle-legacy" : "battle") : battleLink.kind === "invalid" ? "battle-invalid" : "direct" });
 if (challenger) renderBattleInvite(challenger);
-else if (hadBattleHash) window.setTimeout(() => toast("배틀 링크를 읽지 못했어요. 내 팔자부터 확인해 보세요!"), 300);
-// 이미 열린 탭에 배틀 링크를 붙여 넣으면 주소의 # 부분만 바뀌고 페이지는 다시 시작되지 않는다 → 새로 시작
+else if (battleLink.kind === "invalid") window.setTimeout(() => toast("배틀 링크가 올바르지 않아요. 내 팔자부터 확인해 보세요!"), 300);
+// 이미 열린 탭에서 예전 형식(#b=) 링크로 이동하면 페이지가 다시 시작되지 않는다 → 새로 시작.
+// 새 형식(?b=)은 주소의 query 가 바뀌므로 브라우저가 항상 페이지를 새로 연다.
 window.addEventListener("hashchange", () => {
   if (/^#b=/.test(location.hash)) location.reload();
+});
+window.addEventListener("popstate", () => {
+  if (new URLSearchParams(location.search).has("b")) location.reload();
 });
 
 function renderBattleInvite(c: BattleCard): void {
   const ch = characterById(c.characterId)!;
-  const who = c.nickname ?? "친구";
+  const who = c.nickname ? `${c.nickname}님` : "친구";
   const box = h(
     "div",
     { class: "invite", id: "battle-invite" },
-    h("p", { class: "invite-tag" }, "⚔️ 배틀 신청이 도착했어요"),
-    h("div", { class: "invite-row" }, h("span", { class: "em", "aria-hidden": "true" }, ch.emoji), h("div", {}, h("b", {}, `${who}의 캐릭터: ${ch.name}`), h("p", { class: "mute small", style: "margin:2px 0 0" }, "능력치는 대결에서 공개돼요. 내 팔자로 이겨 보세요!"))),
+    h("p", { class: "invite-tag" }, `⚔️ ${who}의 배틀 신청이 도착했어요`),
+    h("div", { class: "invite-row" }, h("span", { class: "em", "aria-hidden": "true" }, ch.emoji), h("div", {}, h("b", {}, `도전자 캐릭터: ${ch.name}`), h("p", { class: "mute small", style: "margin:2px 0 0" }, "능력치는 대결에서 공개돼요. 내 팔자로 이겨 보세요!"))),
   );
   const landing = $("#s-landing");
   landing.insertBefore(box, landing.firstChild);
@@ -628,9 +626,10 @@ function renderFeedback(c: Current): HTMLElement {
     comment,
     submit,
     h("p", { class: "mute small", style: "margin-top:8px" }, "생년월일·출생 시간은 피드백과 함께 저장하지 않아요."),
-    rt.feedback.kind === "remote" && APP_CONFIG.isDev
+    // 개발 빌드 전용 안내 (__PALJA_ENV__ 비교라 production 빌드에서는 문구째 제거된다)
+    __PALJA_ENV__ === "development" && rt.feedback.kind === "remote"
       ? h("p", { class: "devnote" }, "개발 환경: 피드백이 Supabase 에 개발용(source=development)으로 저장돼요.")
-      : rt.feedback.kind === "local-dev"
+      : __PALJA_ENV__ === "development" && rt.feedback.kind === "local-dev"
       ? h("p", { class: "devnote" }, "Beta 개발 환경: 피드백은 이 브라우저에만 임시 저장돼요. 아직 운영 서버로 전송되지 않아요.")
       : rt.feedback.kind === "unconfigured"
         ? h("p", { class: "devnote" }, "피드백 저장소를 준비 중이에요. 지금은 피드백이 저장되지 않아요.")
@@ -728,13 +727,22 @@ function renderBattleResult(c: Current, friend: BattleCard): HTMLElement {
   );
 }
 
-/** 결과 맨 마지막: 친구와 배틀하기 (닉네임 + 받을 친구 전화번호 → 휴대폰 문자 앱으로 배틀 신청) */
+/**
+ * 결과 맨 마지막: 친구와 배틀하기.
+ * 모든 공유 방식(문자·카카오톡·공유 시트·링크 복사·QR)은 createBattleShare() 가 만든 같은 링크만 쓴다.
+ *  - 휴대폰: 문자(전화번호 → 문자 앱) / 카카오톡(키 설정 시) / 다른 방법(공유 시트) / 링크 복사
+ *  - PC   : 카카오톡(키 설정 시) / 링크 복사 / 휴대폰으로 보내기(QR + 복사) / 다른 방법(지원 시)
+ * 지원하지 않는 방식은 버튼을 아예 보이지 않는다.
+ */
 function renderBattle(c: Current): HTMLElement {
   const v = c.view;
+  const mobile = isMobileDevice();
   const nick = h("input", { id: "battle-nick", type: "text", maxlength: String(NICKNAME_MAX), placeholder: "예: 행운의고양이", autocomplete: "off" }) as HTMLInputElement;
   // 전화번호: 문자 앱을 여는 데만 쓰고 저장·전송하지 않는다 (자동완성 저장도 끔)
   const phone = h("input", { id: "battle-phone", type: "tel", inputmode: "numeric", maxlength: "13", placeholder: "010-1234-5678", autocomplete: "off", name: "battle-phone-no-save" }) as HTMLInputElement;
   const err = h("p", { class: "err", id: "battle-err", role: "alert" });
+  const fallback = h("div", { id: "share-fallback" });
+  const qrPanel = h("div", { id: "qr-panel", hidden: true });
   const total = c.result.free.scores.reduce((a, s) => a + s.value, 0);
   const card = h(
     "div",
@@ -745,83 +753,148 @@ function renderBattle(c: Current): HTMLElement {
     h("div", { class: "tl" }, v.character.tagline),
     h("div", { class: "top3" }, h("span", {}, "능력치 총점 ", h("b", {}, "???")), h("span", {}, "7라운드 대결")),
   );
-  const fallback = h("div", { id: "share-fallback" });
-  const myLink = () => {
-    const myCard = battleCardFrom(c.result.free, sanitizeNickname(nick.value));
-    return { myCard, url: battleUrl(APP_CONFIG.publicUrl ?? `${location.origin}${location.pathname}`, myCard), text: buildBattleShareText(myCard) };
+
+  /** 지금 입력된 닉네임으로 만든 하나뿐인 배틀 링크 */
+  const share = (): BattleShare => createBattleShare(battleCardFrom(c.result.free, sanitizeNickname(nick.value)), APP_CONFIG.publicUrl ?? location.href);
+  const trackShare = (method: string) =>
+    rt.track("share_click", { mode: "battle", method, device: mobile ? "mobile" : "pc", hasNickname: sanitizeNickname(nick.value) !== null, rematch: challenger !== null }, c.resultId);
+
+  /** 자동 복사가 안 될 때: 링크를 직접 선택·복사할 수 있는 입력창 */
+  const showManual = (s: BattleShare) => {
+    const inp = h("input", { id: "battle-url-input", type: "text", readonly: true, "aria-label": "배틀 링크", style: "margin-top:10px" }) as HTMLInputElement;
+    inp.value = s.url;
+    fallback.replaceChildren(h("p", { class: "mute small", style: "margin-top:10px" }, "아래 링크를 길게 눌러(또는 Ctrl+C) 복사해 주세요."), inp);
+    inp.focus();
+    inp.select();
   };
-  const trackShare = (method: string, hasNickname: boolean) =>
-    rt.track("share_click", { mode: "battle", method, hasNickname, rematch: challenger !== null }, c.resultId);
 
-  // ① 문자로 보내기 (기본)
-  const smsBtn = h("button", { class: "btn jade", type: "button", id: "sms-btn" }, "⚔️ 문자로 배틀 신청 보내기");
-  smsBtn.addEventListener("click", () => {
+  const copyLink = async () => {
     err.textContent = "";
-    const digits = normalizeKoreanMobile(phone.value);
-    if (!digits) {
-      err.textContent = "친구의 휴대폰 번호를 확인해 주세요. (예: 010-1234-5678)";
-      return;
+    const s = share();
+    const how = await copyText(s.clipboardText);
+    if (how) toast("배틀 링크가 복사됐어요! 친구에게 보내보세요 ⚔️");
+    else {
+      toast("자동 복사가 안 돼요. 아래 링크를 직접 복사해 주세요.");
+      showManual(s);
     }
-    const { myCard, url, text } = myLink();
-    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    const uri = buildSmsUri(digits, `${text}\n${url}`, isIos ? "ios" : "other");
-    phone.value = ""; // 보낸 직후 화면에서도 지운다
-    trackShare("sms", myCard.nickname !== null); // 전화번호는 이벤트에 넣지 않는다
-    toast("문자 앱을 열었어요. 전송 버튼만 누르면 배틀 신청 완료!");
-    window.location.href = uri;
-  });
+    trackShare(how ? `copy-${how}` : "copy-manual");
+  };
 
-  // ② 다른 방법 (카카오톡 등 공유 / 링크 복사)
-  const otherBtn = h("button", { class: "btn ghost", type: "button", id: "share-btn" }, "다른 방법으로 보내기 (카톡·링크 복사)");
-  otherBtn.addEventListener("click", async () => {
-    err.textContent = "";
-    const { myCard, url, text } = myLink();
-    let method = "none";
-    try {
-      if (typeof navigator.share === "function") {
-        method = "web-share";
-        await navigator.share({ title: "사주팔자PLAY 배틀", text, url });
-      } else if (navigator.clipboard?.writeText) {
-        method = "clipboard";
-        await navigator.clipboard.writeText(`${text}\n${url}`);
-        toast("배틀 링크를 복사했어요. 친구에게 붙여넣어 보내 보세요!");
-      } else {
-        throw new Error("no share");
+  const buttons: HTMLElement[] = [];
+
+  if (mobile) {
+    const sms = h("button", { class: "btn jade", type: "button", id: "sms-btn" }, "⚔️ 문자로 배틀 신청 보내기");
+    sms.addEventListener("click", () => {
+      err.textContent = "";
+      const digits = normalizeKoreanMobile(phone.value);
+      if (!digits) {
+        err.textContent = "친구의 휴대폰 번호를 확인해 주세요. (예: 010-1234-5678)";
+        return;
       }
-    } catch (e) {
-      if ((e as { name?: string })?.name === "AbortError") return; // 사용자가 공유 창을 닫음
-      method = "manual";
-      const ta = h("textarea", { class: "share-fallback", readonly: true, "aria-label": "배틀 신청 문구" }) as HTMLTextAreaElement;
-      ta.value = `${text}\n${url}`;
-      fallback.replaceChildren(h("p", { class: "mute small", style: "margin-top:10px" }, "아래 문구를 길게 눌러 복사해 주세요."), ta);
-      ta.select();
-    } finally {
-      trackShare(method, myCard.nickname !== null);
+      const s = share();
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      const uri = buildSmsUri(digits, s.smsBody, isIos ? "ios" : "other");
+      phone.value = ""; // 보낸 직후 화면에서도 지운다
+      trackShare("sms"); // 전화번호는 이벤트에 넣지 않는다
+      toast("문자 앱을 열었어요. 전송 버튼만 누르면 배틀 신청 완료!");
+      window.location.href = uri;
+    });
+    buttons.push(sms);
+  }
+
+  if (KAKAO_ENABLED) {
+    const kakao = h("button", { class: "btn", type: "button", id: "kakao-btn", style: "background:#FEE500;color:#191919" }, "카카오톡으로 보내기");
+    kakao.addEventListener("click", async () => {
+      const s = share();
+      const ok = await shareKakao(s);
+      trackShare(ok ? "kakao" : "kakao-failed");
+      if (!ok) {
+        toast("카카오톡을 열지 못했어요. 링크를 복사해서 보내 주세요.");
+        await copyLink();
+      }
+    });
+    buttons.push(kakao);
+  }
+
+  if (mobile && hasWebShare()) {
+    const other = h("button", { class: "btn ghost", type: "button", id: "webshare-btn" }, "다른 방법으로 보내기 (카톡 등)");
+    other.addEventListener("click", async () => {
+      const s = share();
+      try {
+        await navigator.share(s.webShare); // 링크는 text 안에 들어 있다
+        trackShare("web-share");
+      } catch (e) {
+        if ((e as { name?: string })?.name === "AbortError") return; // 사용자가 공유 창을 닫음
+        trackShare("web-share-failed");
+        await copyLink();
+      }
+    });
+    buttons.push(other);
+  }
+
+  const copy = h("button", { class: mobile ? "btn ghost" : "btn jade", type: "button", id: "copy-btn" }, "🔗 배틀 링크 복사");
+  copy.addEventListener("click", () => void copyLink());
+  buttons.push(copy);
+
+  if (!mobile) {
+    const toPhone = h("button", { class: "btn ghost", type: "button", id: "phone-btn" }, "📱 휴대폰으로 보내기 / 문자");
+    toPhone.addEventListener("click", () => {
+      const s = share();
+      qrPanel.replaceChildren(
+        h("div", { class: "notice" }, "PC에서는 문자 앱이 연결되어 있지 않을 수 있어요. 휴대폰 카메라로 아래 QR을 찍으면 배틀 링크가 열려요. 친구에게 바로 보여 주거나, 링크를 복사해서 보내세요."),
+        h("div", { class: "qr", id: "battle-qr", "data-url": s.qrText }),
+        h("button", { class: "btn ghost", type: "button", onclick: () => void copyLink() }, "🔗 배틀 링크 복사"),
+      );
+      (qrPanel.querySelector("#battle-qr") as HTMLElement).innerHTML = qrSvg(s.qrText);
+      qrPanel.hidden = false;
+      trackShare("qr");
+    });
+    buttons.push(toPhone);
+    if (hasWebShare()) {
+      const other = h("button", { class: "btn ghost", type: "button", id: "webshare-btn" }, "다른 방법으로 공유");
+      other.addEventListener("click", async () => {
+        try {
+          await navigator.share(share().webShare);
+          trackShare("web-share");
+        } catch (e) {
+          if ((e as { name?: string })?.name !== "AbortError") await copyLink();
+        }
+      });
+      buttons.push(other);
     }
+  }
+
+  // 닉네임이 바뀌면 이미 띄운 QR 은 예전 링크라 닫는다
+  nick.addEventListener("input", () => {
+    qrPanel.hidden = true;
+    fallback.replaceChildren();
   });
 
   return h(
     "section",
-    { id: "battle", "aria-label": "친구와 배틀하기" },
-    h("h2", {}, "친구와 배틀하기"),
+    { id: "battle", "aria-label": "친구와 배틀하기", "data-device": mobile ? "mobile" : "pc" },
+    h("h2", {}, mobile ? "친구와 배틀하기" : "⚔️ 친구에게 도전장 보내기"),
     h("p", { class: "mute" }, `친구가 링크를 열고 자기 팔자를 넣으면, 7개 능력치로 라운드 대결이 펼쳐져요. 내 총점은 ${total}점! 친구는 대결 전까지 몰라요.`),
     card,
     h("label", { for: "battle-nick" }, "배틀 닉네임"),
     nick,
     h("p", { class: "mute small", style: "margin:6px 0 0" }, "실명 대신 별명을 추천해요."),
-    h("label", { for: "battle-phone" }, "받을 친구 전화번호"),
-    phone,
-    h("p", { class: "mute small", style: "margin:6px 0 0" }, "🔒 전화번호는 저장되지 않으며 개인정보보호 처리됩니다."),
+    mobile
+      ? [
+          h("label", { for: "battle-phone" }, "받을 친구 전화번호"),
+          phone,
+          h("p", { class: "mute small", style: "margin:6px 0 0" }, "🔒 전화번호는 저장되지 않으며 개인정보보호 처리됩니다."),
+        ]
+      : null,
     err,
-    smsBtn,
-    otherBtn,
+    buttons,
+    qrPanel,
     fallback,
-    h("p", { class: "mute small", style: "margin-top:8px" }, "링크에는 캐릭터와 능력치 점수만 담겨요. 생년월일·출생 시간은 들어가지 않아요. 재미로 보는 대결이며 상품·보상과는 관계없어요."),
+    h("p", { class: "mute small", style: "margin-top:8px" }, "링크에는 캐릭터와 능력치 점수, 배틀 닉네임만 담겨요. 생년월일·출생 시간·성별·전화번호는 들어가지 않아요. 재미로 보는 대결이며 상품·보상과는 관계없어요."),
   );
 }
 
 // 개발 환경에서만: E2E 테스트가 이벤트를 확인할 수 있도록 노출 (production 빌드에서는 코드째 제거됨)
-declare const __PALJA_ENV__: "development" | "production";
 if (__PALJA_ENV__ === "development") {
   (window as unknown as { __PALJA_DEV__: unknown }).__PALJA_DEV__ = { events: rt.memoryEvents, sessionId: rt.sessionId };
 }

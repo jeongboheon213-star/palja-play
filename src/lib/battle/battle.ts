@@ -30,7 +30,8 @@ export function characterById(id: string): CharacterCopy | null {
 /** 닉네임 정리: 공백 정리, 제어문자·링크 제거, 최대 10자. 비면 null */
 export function sanitizeNickname(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const s = Array.from(raw.replace(/[\u0000-\u001f\u007f<>]/g, "").replace(/\s+/g, " ").trim()).slice(0, NICKNAME_MAX).join("");
+  // | 는 배틀 토큰 구분자라서 제거한다
+  const s = Array.from(raw.replace(/[\u0000-\u001f\u007f<>|]/g, "").replace(/\s+/g, " ").trim()).slice(0, NICKNAME_MAX).join("");
   if (s.length === 0) return null;
   if (/https?:|www\.|:\/\/|\.(com|net|kr|io|co)\b/i.test(s)) return null;
   return s;

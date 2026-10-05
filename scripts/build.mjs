@@ -69,6 +69,10 @@ if (paymentsMode === "test" && tossClientKey && !/^test_(g?ck)_/.test(tossClient
 if (paymentsMode === "live" && (process.env.PALJA_ALLOW_LIVE_PAYMENTS !== "yes" || !/^live_(g?ck)_/.test(tossClientKey ?? ""))) {
   throw new Error("LIVE 결제는 사용자 최종 승인(PALJA_ALLOW_LIVE_PAYMENTS=yes)과 live_ck_ 키가 있어야 빌드됩니다.");
 }
+// 카카오톡 공유: 카카오 JavaScript 키(공개 키, 카카오 콘솔에서 사이트 도메인 등록 필수). 없으면 카카오 버튼을 숨긴다.
+// --kakao-test-key: 개발 빌드 E2E 전용 가짜 키 (카카오 버튼을 보이게 해서 SDK 에 전달되는 링크를 검사). production 빌드에서는 무시.
+const kakaoJsKey = dev && process.argv.includes("--kakao-test-key") ? "0123456789abcdef0123456789abcdef" : process.env.PALJA_KAKAO_JS_KEY || null;
+if (kakaoJsKey && !/^[0-9a-f]{32}$/.test(kakaoJsKey)) throw new Error("PALJA_KAKAO_JS_KEY 는 카카오 JavaScript 키(32자리 영숫자)여야 합니다. REST API·Admin 키를 넣지 마세요.");
 const paymentsLabel = paymentsMode === "off" || !tossClientKey ? "off (준비 중 안내)" : `${paymentsMode} (${tossClientKey.slice(0, 8)}…)`;
 
 rmSync(outdir, { recursive: true, force: true });
@@ -94,6 +98,7 @@ const options = {
     __PALJA_SUPABASE_ANON_KEY__: JSON.stringify(supabaseAnonKey),
     __PALJA_PAYMENTS_MODE__: JSON.stringify(tossClientKey ? paymentsMode : "off"),
     __PALJA_TOSS_CLIENT_KEY__: JSON.stringify(tossClientKey),
+    __PALJA_KAKAO_JS_KEY__: JSON.stringify(kakaoJsKey),
   },
   logLevel: "info",
 };
@@ -106,5 +111,5 @@ if (serve) {
 } else {
   const r = await esbuild.build({ ...options, metafile: true });
   const out = Object.entries(r.metafile.outputs).map(([f, o]) => `${f} ${(o.bytes / 1024).toFixed(1)}KB`);
-  console.log(`[${dev ? "development" : "production"}] ${out.join(", ")}  supabase: ${supabaseLabel}  payments: ${paymentsLabel}`);
+  console.log(`[${dev ? "development" : "production"}] ${out.join(", ")}  supabase: ${supabaseLabel}  payments: ${paymentsLabel}  kakao: ${kakaoJsKey ? "설정됨" : "미설정(버튼 숨김)"}`);
 }

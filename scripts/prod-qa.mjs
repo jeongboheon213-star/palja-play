@@ -6,7 +6,20 @@
 // - 사용자 B(친구): 완전히 별도의 브라우저(프로필 분리)에서 배틀 링크 → 초대 → 입력 → 계산 → VS 결과
 // - 모든 인터넷 요청을 기록해 생년월일·시간·성별·전화번호·기둥이 나가지 않는지 검사
 // - Supabase 저장 요청(201) 확인. QA 기록 식별: 피드백 comment "[PROD QA]" + 기록된 session_id 목록
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+/** 브라우저 프로세스 트리 전체 종료 (Windows 는 자식 프로세스가 남아 다음 실행을 막는다) */
+function killTree(proc) {
+  try {
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/PID", String(proc.pid), "/T", "/F"], { stdio: "ignore" });
+      // 트리에서 떨어져 나간 보조 프로세스도 이 실행의 테스트 프로필 경로로 찾아 종료
+      const tag = String(proc.spawnargs.find((x) => x.startsWith("--user-data-dir=")) ?? "").split("=")[1]?.split("/").pop();
+      if (tag) spawnSync("powershell", ["-NoProfile", "-Command", `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -match '${tag}' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`], { stdio: "ignore" });
+    }
+    else proc.kill("SIGKILL");
+  } catch {}
+}
+
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -31,7 +44,7 @@ async function waitFor(fn, ms = 20000, step = 150) {
 
 /** 별도 프로필의 브라우저 하나 = 독립된 사용자 */
 async function launch(name, port) {
-  const profile = `e2e-artifacts/prod-profile-${name}`;
+  const profile = `e2e-artifacts/prod-profile-${name}-${process.pid}`;
   rmSync(profile, { recursive: true, force: true });
   const proc = spawn(BROWSER, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--lang=ko-KR", "about:blank"], { stdio: "ignore" });
   await waitFor(() => fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json()));
@@ -240,7 +253,7 @@ const sessionIds = [...new Set(supa.filter((r) => r.url.endsWith("/beta_events")
 const resultIds = [...new Set(supa.map((r) => JSON.parse(r.body).result_id).filter(Boolean))];
 for (const u of [A, B]) {
   u.ws.close();
-  u.proc.kill();
+  killTree(u.proc);
 }
 const failed = results.filter((r) => !r.ok);
 const report = { base: BASE, at: new Date().toISOString(), results, shots, hosts, qaSessionIds: sessionIds, qaResultIds: resultIds, supabaseRequests: supa.map((r) => ({ table: r.url.split("/").pop(), status: r.status, name: JSON.parse(r.body).name ?? "feedback" })) };

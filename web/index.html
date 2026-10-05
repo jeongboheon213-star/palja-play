@@ -165,8 +165,8 @@ summary{cursor:pointer;color:var(--mute);font-size:14px}
 .share-fallback{width:100%;margin-top:10px}
 
 /* 배틀 */
-input[type=text]{width:100%;min-height:48px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font:500 16px 'Noto Sans KR',sans-serif}
-input[type=text]:focus-visible{outline:3px solid var(--jade);outline-offset:2px}
+input[type=text],input[type=tel]{width:100%;min-height:48px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font:500 16px 'Noto Sans KR',sans-serif}
+input[type=text]:focus-visible,input[type=tel]:focus-visible{outline:3px solid var(--jade);outline-offset:2px}
 .invite{border:1px solid var(--gold);border-radius:18px;padding:14px 16px;margin:4px 0 6px;background:linear-gradient(150deg,rgba(255,179,71,.16),rgba(78,209,176,.06))}
 .invite-tag{margin:0 0 8px;font-weight:700;color:var(--gold);font-size:14px}
 .invite-row{display:flex;gap:12px;align-items:center}
@@ -192,6 +192,8 @@ input[type=text]:focus-visible{outline:3px solid var(--jade);outline-offset:2px}
 .round.friend .rv.friend{color:#171936;background:var(--rose)}
 .round.me .rl,.round.friend .rl{color:var(--ink)}
 
+.qr{width:min(240px,70vw);margin:12px auto;background:#fff;border-radius:12px;padding:8px}
+.qr svg{display:block;width:100%;height:auto}
 .note{font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);margin-top:34px;padding-top:14px;white-space:pre-line}
 
 /* 바텀시트 */
@@ -212,7 +214,6 @@ input[type=text]:focus-visible{outline:3px solid var(--jade);outline-offset:2px}
 <body>
 <header class="top"><div class="in">
   <button class="logo" id="home" type="button" aria-label="처음으로">사주팔자<b>PLAY</b></button><span class="beta" title="Beta 서비스">BETA</span>
-  <span class="devflag" id="devflag" hidden>개발 환경</span>
 </div></header>
 
 <main class="wrap">

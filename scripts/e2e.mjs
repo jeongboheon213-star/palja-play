@@ -7,7 +7,7 @@
 //  - dist-dev 를 임시 로컬 서버로 띄우고 모바일(390x844)·데스크톱(1280x900) 화면에서 실제 흐름을 클릭한다.
 //  - 결과·이벤트·피드백 저장 레코드·공유 문구를 검사하고 화면 캡처를 docs/screenshots/ 에 저장한다.
 //  - 실패하면 exit code 1.
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
@@ -16,7 +16,20 @@ import { fileURLToPath } from "node:url";
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 const ROOT = "dist-dev";
 const SHOTS = "docs/screenshots";
-const PROFILE = "e2e-artifacts/profile";
+const PROFILE = `e2e-artifacts/profile-${process.pid}`; // 실행마다 새 프로필
+/** 브라우저 프로세스 트리 전체 종료 (Windows 는 자식 프로세스가 남아 다음 실행을 막는다) */
+function killTree(proc) {
+  try {
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/PID", String(proc.pid), "/T", "/F"], { stdio: "ignore" });
+      // 트리에서 떨어져 나간 보조 프로세스도 이 실행의 테스트 프로필 경로로 찾아 종료
+      const tag = String(proc.spawnargs.find((x) => x.startsWith("--user-data-dir=")) ?? "").split("=")[1]?.split("/").pop();
+      if (tag) spawnSync("powershell", ["-NoProfile", "-Command", `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -match '${tag}' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`], { stdio: "ignore" });
+    }
+    else proc.kill("SIGKILL");
+  } catch {}
+}
+
 const BROWSER =
   process.env.PALJA_BROWSER ??
   ["C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", "C:/Program Files/Microsoft/Edge/Application/msedge.exe", "C:/Program Files/Google/Chrome/Application/chrome.exe"].find((p) => existsSync(p));
@@ -105,7 +118,9 @@ async function evaluate(expr) {
   return r.result.value;
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const ANDROID_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
 async function viewport(kind) {
+  await cdp("Emulation.setUserAgentOverride", { userAgent: kind === "desktop" ? version["User-Agent"] : ANDROID_UA });
   if (kind === "mobile") await cdp("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   else if (kind === "small") await cdp("Emulation.setDeviceMetricsOverride", { width: 320, height: 640, deviceScaleFactor: 2, mobile: true });
   else await cdp("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
@@ -316,45 +331,42 @@ await check("Feedback 제출 → 감사 화면 + feedback_submit + localStorage(
   assert(/^[0-9a-f-]{36}$/.test(r.resultId) && /^[0-9a-f-]{36}$/.test(r.feedbackId), "UUID");
   for (const k of ["engineVersion", "schemaVersion", "interpretationVersion", "scoreVersion", "solarTermProviderVersion"]) assert(r.versions[k], k);
   const json = JSON.stringify(r);
-  assert(!json.includes("1990") && !json.includes("14:20") && !json.includes("female") && !json.includes("gender"), "개인정보 미포함");
+  // 무작위 UUID·생성 시각은 우연히 "1990"·"14:20" 같은 숫자를 포함할 수 있다(실제 발생: resultId …419901…).
+  // 그래서 이 세 필드는 형식만 검사하고, 나머지 모든 값·키 이름에서 개인정보 문자열을 찾는다.
+  assert(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(r.createdAt), "createdAt 형식");
+  const { feedbackId: _f, resultId: _r, createdAt: _c, ...rest } = r;
+  const restJson = JSON.stringify(rest);
+  assert(!restJson.includes("1990") && !restJson.includes("14:20") && !restJson.includes("05-15") && !restJson.includes("female") && !/gender|birth/i.test(json), `개인정보 미포함: ${restJson}`);
   assert((await events()).includes("feedback_submit"), "feedback_submit");
 });
 await shot("11-feedback-done-mobile", "#feedback");
 
 let battleLink = null;
-await check("친구와 배틀하기: 섹션 제목·닉네임 입력, 클립보드로 배틀 링크 공유 + share_click(mode=battle)", async () => {
+await check("친구와 배틀하기(모바일): 링크 복사 → 복사된 값이 canonical battle URL(?b=, ~·# 없음) + share_click(mode=battle)", async () => {
   const t = await visibleText();
   assert(t.includes("친구와 배틀하기") && !t.includes("내 캐릭터 자랑하기"), "섹션 제목");
+  assert((await evaluate("document.getElementById('battle').dataset.device")) === "mobile", "모바일 화면으로 인식");
   await evaluate(`(() => {
-    Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
     window.__copied = null;
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t) => { window.__copied = t; } }, configurable: true });
     const n = document.getElementById('battle-nick'); n.value = '보헌'; n.dispatchEvent(new Event('input', {bubbles:true}));
     return true; })()`);
-  await click("#share-btn");
+  await click("#copy-btn");
   await sleep(300);
-  const text = await evaluate("window.__copied");
-  assert(text && text.includes("사주팔자PLAY 배틀 신청") && text.includes("독립형 승부사") && text.includes("보헌"), `공유 문구: ${text}`);
-  battleLink = text.split("\n").pop();
-  assert(battleLink.startsWith(BASE + "/#b=b1~"), `링크: ${battleLink}`);
-  for (const bad of ["1990", "14:20", "05-15", "0515", "female"]) assert(!text.includes(bad), `개인정보 미포함: ${bad}`);
+  battleLink = await evaluate("window.__copied");
+  assert(/^http:\/\/127\.0\.0\.1:\d+\/\?b=[A-Za-z0-9_-]+$/.test(battleLink), `복사된 값: ${battleLink}`);
+  for (const bad of ["1990", "14:20", "05-15", "0515", "female", "~", "#"]) assert(!battleLink.includes(bad), `링크에 ${bad}`);
+  assert((await visibleText()).includes("배틀 링크가 복사됐어요! 친구에게 보내보세요 ⚔️"), "복사 안내");
   const ev = await evaluate("window.__PALJA_DEV__.events.filter(e => e.name === 'share_click').map(e => e.props)");
-  assert(ev.length && ev.at(-1).mode === "battle" && ev.at(-1).hasNickname === true, JSON.stringify(ev));
+  assert(ev.length && ev.at(-1).mode === "battle" && ev.at(-1).hasNickname === true && ev.at(-1).device === "mobile", JSON.stringify(ev));
 });
-await check("배틀 공유: Web Share API 있으면 제목·문구·링크로 공유", async () => {
-  await evaluate("window.__shared = null; Object.defineProperty(navigator, 'share', { value: async (d) => { window.__shared = d; }, configurable: true }); true");
-  await click("#share-btn");
+await check("배틀 공유: 자동 복사가 모두 실패하면 링크 입력창을 보여 직접 복사 (canonical URL)", async () => {
+  await evaluate("Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }); document.execCommand = () => false; true");
+  await click("#copy-btn");
   await sleep(200);
-  const d = await evaluate("window.__shared");
-  assert(d && d.title === "사주팔자PLAY 배틀" && d.text.includes("독립형 승부사") && d.url.includes("#b=b1~"), "navigator.share 호출");
+  assert((await evaluate("document.getElementById('battle-url-input')?.value")) === battleLink, "직접 복사용 입력창 = 같은 링크");
 });
-await check("배틀 공유: 공유·복사 모두 실패하면 직접 복사용 문구 표시", async () => {
-  await evaluate("Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }); true");
-  await click("#share-btn");
-  await sleep(200);
-  assert(await evaluate("document.querySelector('#share-fallback textarea')?.value.includes('#b=b1~')"), "fallback textarea");
-});
-await check("문자로 배틀 신청: 닉네임 안내·전화번호 안내 문구, 잘못된 번호 안내, 보낸 뒤 번호 지움, 이벤트에 번호 없음", async () => {
+await check("문자로 배틀 신청: 안내 문구, 잘못된 번호 안내, 문자 본문의 링크 = canonical, 보낸 뒤 번호 지움, 이벤트에 번호 없음", async () => {
   const t = await visibleText();
   assert(t.includes("배틀 닉네임") && t.includes("실명 대신 별명을 추천해요."), "닉네임 안내");
   assert(t.includes("전화번호는 저장되지 않으며 개인정보보호 처리됩니다."), "전화번호 안내");
@@ -364,6 +376,9 @@ await check("문자로 배틀 신청: 닉네임 안내·전화번호 안내 문�
   await evaluate("document.getElementById('battle-phone').value = '010-9876-5432'; true");
   await click("#sms-btn");
   await sleep(500);
+  const sms = netLog.filter((l) => l.includes(" sms:")).at(-1) ?? "";
+  const body = decodeURIComponent((sms.split("body=")[1] ?? "").trim()); // 로그 형식상 끝에 붙는 공백 제거
+  assert(body.split("\n").pop() === battleLink, `문자 본문 링크: ${body.split("\n").pop()}`);
   assert((await evaluate("document.getElementById('battle-phone')?.value ?? ''")) === "", "보낸 뒤 번호 지움");
   const ev = await evaluate("window.__PALJA_DEV__.events.filter(e => e.name === 'share_click').at(-1)");
   assert(ev.props.method === "sms", JSON.stringify(ev.props));
@@ -436,13 +451,14 @@ await check("새로고침하면 처음 화면으로 (입력 정보 남지 않음
 });
 
 console.log("\n[모바일] 친구와 배틀: 링크로 들어온 친구");
-await check("배틀 링크로 입장 → 초대 배너(상대 캐릭터, 점수는 숨김) + landing_view(via=battle)", async () => {
+await check("배틀 링크로 입장(새 탭) → 'OOO님의 배틀 신청이 도착했어요' + 도전자 캐릭터 + landing_view(via=battle)", async () => {
   assert(battleLink, "앞 단계에서 만든 배틀 링크");
+  await cdp("Page.navigate", { url: "about:blank" });
   await cdp("Page.navigate", { url: battleLink });
   await waitFor(() => evaluate("document.readyState === 'complete' && !!window.__PALJA_DEV__"));
   await sleep(300);
   const t = await visibleText();
-  assert(t.includes("배틀 신청이 도착했어요") && t.includes("보헌의 캐릭터: 독립형 승부사"), "초대 배너");
+  assert(t.includes("보헌님의 배틀 신청이 도착했어요") && t.includes("도전자 캐릭터: 독립형 승부사"), "초대 배너");
   assert(t.includes("내 팔자로 도전하기"), "CTA 문구");
   const lv = await evaluate("window.__PALJA_DEV__.events.find(e => e.name === 'landing_view').props.via");
   assert(lv === "battle", lv);
@@ -457,32 +473,43 @@ await check("친구가 자기 팔자 입력 → 결과 상단에 배틀 결과(V
   assert(box.includes("보헌과의 배틀") && /승리|패배|무승부/.test(box), box.slice(0, 80));
   assert((await evaluate("document.querySelectorAll('#battle-result .round').length")) === 7, "7라운드");
   assert(box.includes("기본 운 밸런스") && box.includes("총점"), "라운드 이름/총점");
-  const order = await evaluate("[...document.querySelector('.result').children].map(e => e.id || e.className).slice(0, 4).join(',')");
-  assert(order.startsWith("char-card") || order.includes("char-card,battle-result") || order.split(",")[1] === "char-card", order);
   const outcome = await evaluate("window.__PALJA_DEV__.events.find(e => e.name === 'result_view').props.battleOutcome");
   assert(["win", "lose", "draw"].includes(outcome), String(outcome));
   await noDevTerms();
   await noOverflow();
 });
 await shot("22-battle-result-mobile", "#battle-result");
-await check("리매치: 친구도 배틀 섹션에서 다시 도전장 보내기 (share_click.rematch=true)", async () => {
-  await evaluate(`(() => { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
-    window.__copied = null; Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t) => { window.__copied = t; } }, configurable: true }); return true; })()`);
-  await click("#share-btn");
+await check("리매치: 친구도 배틀 섹션에서 다시 도전장 (새 canonical 링크, share_click.rematch=true)", async () => {
+  await evaluate(`(() => { window.__copied = null; Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t) => { window.__copied = t; } }, configurable: true }); return true; })()`);
+  await click("#copy-btn");
   await sleep(300);
-  assert((await evaluate("window.__copied")).includes("#b=b1~"), "리매치 링크");
+  const rematch = await evaluate("window.__copied");
+  assert(/\?b=[A-Za-z0-9_-]+$/.test(rematch) && rematch !== battleLink, `리매치 링크: ${rematch}`);
   const last = await evaluate("window.__PALJA_DEV__.events.filter(e => e.name === 'share_click').at(-1).props");
   assert(last.rematch === true, JSON.stringify(last));
 });
-await check("조작·손상된 배틀 링크 → 배틀 없이 평소 랜딩 + 안내", async () => {
-  await cdp("Page.navigate", { url: BASE + "/#b=b1~hacker~999_1_1_1_1_1_1" });
-  await waitFor(() => evaluate("document.readyState === 'complete' && !!window.__PALJA_DEV__"));
-  await sleep(600);
-  const t = await visibleText();
-  assert(!t.includes("배틀 신청이 도착했어요") && t.includes("내 팔자 보기"), "평소 랜딩");
-  assert(t.includes("배틀 링크를 읽지 못했어요"), "안내 토스트");
-  const via = await evaluate("window.__PALJA_DEV__.events.find(e => e.name === 'landing_view').props.via");
-  assert(via === "battle-invalid", via);
+await check("이미 사이트가 열린 탭에서 배틀 링크로 이동 → 배틀 초대 (새 형식 query / 예전 형식 hash 모두)", async () => {
+  await open("/");
+  await cdp("Page.navigate", { url: battleLink });
+  await waitFor(() => evaluate("document.readyState === 'complete' && !!window.__PALJA_DEV__ && !!document.getElementById('battle-invite')"), 8000);
+  // 예전 형식: 같은 탭에서 # 만 바뀌는 이동
+  await open("/");
+  await evaluate("location.hash = '#b=b1~gyeong-challenger~40_65_55_80_89_80_68~67O07ZeM'; true");
+  await waitFor(() => evaluate("!!document.getElementById('battle-invite')"), 8000);
+});
+await check("조작·손상된 배틀 링크 → 배틀 없이 평소 랜딩 + '배틀 링크가 올바르지 않아요' 안내 (새·예전 형식)", async () => {
+  for (const bad of ["/?b=AAAAhackAAAA", "/?b=" + battleLink.split("?b=")[1].slice(0, 20), "/#b=b1~hacker~999_1_1_1_1_1_1"]) {
+    await cdp("Page.navigate", { url: "about:blank" });
+    await cdp("Page.navigate", { url: BASE + bad });
+    await waitFor(() => evaluate("document.readyState === 'complete' && !!window.__PALJA_DEV__"));
+    await sleep(600);
+    const t = await visibleText();
+    assert(!t.includes("배틀 신청이 도착했어요") && t.includes("내 팔자 보기"), `평소 랜딩: ${bad}`);
+    assert(t.includes("배틀 링크가 올바르지 않아요"), `안내: ${bad}`);
+    const via = await evaluate("window.__PALJA_DEV__.events.find(e => e.name === 'landing_view').props.via");
+    assert(via === "battle-invalid", via);
+  }
+  assert(pageErrors.length === 0, pageErrors.join(" | "));
 });
 
 console.log("\n[작은 폰 320x640]");
@@ -537,6 +564,9 @@ await check("production 빌드(dist)에는 debug 화면·개발 hook 이 없다"
   assert(!existsSync("dist/debug.html") && !existsSync("dist/assets/debug.js"), "debug 파일");
   const js = readFileSync("dist/assets/app.js", "utf8");
   assert(!js.includes("__PALJA_DEV__") && !js.includes("Raw SajuData"), "개발 hook");
+  assert(!js.includes("개발 환경"), "production 화면에 '개발 환경' 문구 없음");
+  const html = readFileSync("dist/index.html", "utf8");
+  assert(!/id="devflag"/.test(html), "production HTML 에 개발 환경 배지 요소 없음");
 });
 
 await check("네트워크: 생년월일·출생시간·성별·전화번호·기둥이 어떤 요청에도 실리지 않음", async () => {
@@ -552,7 +582,8 @@ await check("네트워크: 생년월일·출생시간·성별·전화번호·기
 
 // ── 마무리 ──────────────────────────────────────────────────
 ws.close();
-browser.kill();
+killTree(browser);
+rmSync(PROFILE, { recursive: true, force: true, maxRetries: 5 });
 server.close();
 const failed = results.filter((r) => !r.ok);
 writeFileSync("e2e-artifacts/e2e-result.json", JSON.stringify({ browser: version.Browser, results, shots, pageErrors }, null, 2));

@@ -256,3 +256,30 @@
 - orders SQL 최종 검토 후 수정: 트리거 함수 `set search_path = ''`(Supabase 보안 경고 대응), 트리거 함수 외부 호출 권한 회수, `service_role` 에 select/insert/update 명시(삭제 없음), 브라우저 역할(public/anon/authenticated) 권한 전부 회수·정책 없음, FAILED 는 cancelled_at 을 찍지 않도록 정리. 재실행 안전(if not exists / or replace / drop if exists).
 - 테스트: 키 선택·헤더 2개, orders SQL 권한·컬럼 2개 추가 → 221/221.
   - `storage.test.ts` 의 "grant select 금지" 검사를 "브라우저 역할에는 beta 표 INSERT 외 grant 금지, 그 밖의 grant 는 service_role 만"으로 정밀화 (서버 역할 권한이 생겨서. 원래 의도 유지).
+
+## 2026-10-05 — 배틀 공유 버그 수정 (모바일 카톡·링크 복사 → 일반 첫 화면)
+
+복구 지점: 태그 `prod-stable-2026-10-05` (a516d82, 수정 전 정상 Production).
+
+재현 (Production, 코드 수정 전 `e2e-artifacts/repro-share.mjs`)
+- 문자·Web Share(url 필드)·클립보드 모두 같은 주소 `…/#b=b1~gyeong-challenger~40_65_…` 를 만들고 있었다 → 공유 방식별 생성 차이는 아님.
+- 원인 1: 링크에 물결표(~)가 있어, 물결표를 링크 문자로 보지 않는 메신저 자동 링크 인식이 `#b=b1` 에서 링크를 자름 → 잘린 링크는 일반 첫 화면(재현 확인). 문자 앱은 ~ 를 포함해 인식해서 정상.
+- 원인 2: Web Share 는 링크를 url 필드에만, 문구(text)에는 링크가 없었음 → text 만 받는 앱은 링크를 못 받음.
+- 카카오톡 앱 자체의 링크 인식은 자동화 불가라 직접 확인하지 못함 → 위 원인은 재현 기반 판단.
+
+수정
+- `src/lib/battle/share.ts`: 하나뿐인 링크 생성기 `createBattleShare()` → url/text/smsBody/clipboardText/qrText/webShare/kakao. 모든 공유 버튼은 이 결과만 사용 (아키텍처 테스트로 강제).
+- 새 링크 `/?b=<토큰>`: 토큰은 base64url(영문·숫자·-·_ 만), 내용 "2|캐릭터|점수7|닉네임|체크섬(FNV)". 잘림·손상·조작은 체크섬/검증으로 invalid → 일반 화면 + "배틀 링크가 올바르지 않아요." 예전 `#b=b1~` 링크도 계속 열림.
+- Web Share 는 링크를 text 마지막 줄에 넣음. 링크 복사는 링크만 복사.
+- 모바일/PC 화면 분리: 모바일 = 문자 / 카카오(키 설정 시) / 공유 시트 / 링크 복사. PC = 카카오(키 설정 시) / 링크 복사 / 휴대폰으로 보내기(안내 + QR + 복사) / 다른 방법(지원 시). 지원 안 하는 버튼은 숨김.
+- 복사: clipboard API → execCommand → 직접 복사용 입력창. 성공 문구 "배틀 링크가 복사됐어요! 친구에게 보내보세요 ⚔️".
+- QR: `qrcode-generator@2.0.4`(MIT, 의존성 없음, production dependency) 로 브라우저 안에서 생성 — 외부 QR 서비스 미사용.
+- 카카오: 공식 JavaScript SDK 2.8.3 (SRI 를 공식 파일에서 계산해 고정), `Kakao.Share.sendDefault` 텍스트 템플릿, link·버튼 모두 canonical URL. `PALJA_KAKAO_JS_KEY` 없으면 버튼 숨김 (사용자 카카오 개발자 설정 필요).
+- 이미 열린 탭: 새 형식은 query 변경이라 항상 새로 로드, 예전 형식은 hashchange 시 새로 로드.
+- 초대 문구 "OOO님의 배틀 신청이 도착했어요" + "도전자 캐릭터". 닉네임에서 | 제거(토큰 구분자).
+- Production UX: "개발 환경" 배지·개발용 피드백 안내를 production 빌드에서 코드째 제거(테스트 추가). 결제 OFF 이면 구매/구매 코드 UI 숨김(기존 유지).
+
+테스트
+- 단위 `tests/battle-share.test.ts` 8개: 문자·카카오·Web Share·복사·QR(실제 QR 을 그려 `jsqr@1.4.0`(devDependency) 로 디코드) 목적지 = canonical, 메신저식 링크 인식에 안 잘림(예전 형식은 잘림 재현), 모든 길이 잘림·변조·버전·체크섬 → invalid(예외 없음), 개인정보 없음, 기준 주소 정리, 화면 코드가 주소를 직접 조립하지 않음 → 단위 229/229.
+- E2E: 기존 35/35 (모바일은 Android UA 로 인식), 새 `scripts/e2e-battle.mjs` 34/34 — 320·390(모바일)·1280×720·1920×1080(PC) × 문자·복사·Web Share·카카오(SDK 전달값)·QR(SVG 디코드) 각각 링크 → **새 브라우저 컨텍스트** → 초대 → 친구 계산 → VS 7라운드.
+- 테스트 도구 수정: 브라우저 자식 프로세스가 남아 다음 실행을 막던 문제(프로세스 트리 + 프로필 경로로 종료), 피드백 개인정보 검사가 무작위 UUID 속 "1990" 에 우연히 걸리던 문제(id·시각은 형식만 검사, 나머지 값은 그대로 검사).
