@@ -730,8 +730,22 @@ function createSupabaseOrderRepo(baseUrl, serviceRoleKey, fetchFn = fetch) {
     "Content-Type": "application/json"
   };
   async function req(url, init) {
-    const res = await fetchFn(url, { ...init, headers: { ...headers, ...init.headers } });
-    if (!res.ok) throw new Error(`supabase ${res.status}`);
+    let res;
+    try {
+      res = await fetchFn(url, { ...init, headers: { ...headers, ...init.headers } });
+    } catch (error) {
+      const cause = error instanceof Error ? error.cause : void 0;
+      const code = ["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT"].find((c) => c === cause?.code) ?? "NETWORK_ERROR";
+      console.error("[payment-storage]", JSON.stringify({ operation: init.method, status: 0, code }));
+      throw new Error("supabase network error");
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const known = ["42501", "23502", "23503", "23505", "23514", "42P01", "42703", "PGRST106", "PGRST202", "PGRST204", "PGRST205", "PGRST301", "PGRST302", "PGRST303"];
+      const code = known.find((c) => c === body.code) ?? "HTTP_ERROR";
+      console.error("[payment-storage]", JSON.stringify({ operation: init.method, status: res.status, code }));
+      throw new Error(`supabase ${res.status}`);
+    }
     const text = await res.text();
     return text ? JSON.parse(text) : null;
   }

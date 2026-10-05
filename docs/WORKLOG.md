@@ -315,3 +315,11 @@
 - 비밀 키·고객 정보 없는 확인 결과를 docs/phase2-supabase-verification.json으로 저장함. 실제 Toss/앱 열람·환불·제한 횟수 테스트로 과장하지 않음.
 - SQL 사용자 단계 완료. 다음은 Vercel Preview의 TEST 키 입력(사용자 전용). Production/LIVE 설정은 변경하지 않음.
 - 안내 문서 커밋 67fe8ce의 GitHub Actions #5 전체 success 확인.
+
+### Preview TEST 연결 후 주문 저장 오류 진단
+
+- 사용자 화면에서 Preview 재배포 Ready 및 TEST UI 확인. 실제 Toss 결제창 전 주문 생성은 STORAGE_ERROR 503으로 실패해 결제/환불 검증은 미완료.
+- Vercel 사용자 입력 설정 5개가 작업 브랜치 Preview에 존재하는 화면 확인. SUPABASE_URL 형식 오류 수정 후 빌드 성공. 서버 키 재입력 후 구성 검사는 통과했으나 DB 요청 실패 원인은 아직 미확정.
+- 기존 adapter가 오류를 삼켜 내부 원인이 로그에 없었음. 서버 저장소 실패에 HTTP 상태와 허용 목록의 DB/네트워크 분류만 추가. URL/키/헤더/요청/응답 원문/주문 식별자/message/stack 출력 금지. 알 수 없는 코드는 고정 분류로 대체.
+- 비밀정보 포함 응답과 네트워크 오류를 주입해 로그에 정보가 남지 않는 회귀 테스트 추가. npm run check: 타입/API 번들 최신 검사 + 244/244 PASS.
+- 사용자 제공 로그/첨부는 별도 파일이나 GitHub에 복사하지 않음. 다음은 새 Preview에서 1회 요청 후 payment-storage 분류 확인. 권한 변경/SQL 재실행/Production/LIVE 변경 없음.

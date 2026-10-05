@@ -50,8 +50,23 @@ export function createSupabaseOrderRepo(baseUrl: string, serviceRoleKey: string,
     "Content-Type": "application/json",
   };
   async function req(url: string, init: RequestInit): Promise<unknown> {
-    const res = await fetchFn(url, { ...init, headers: { ...headers, ...(init.headers as Record<string, string>) } });
-    if (!res.ok) throw new Error(`supabase ${res.status}`);
+    let res: Response;
+    try {
+      res = await fetchFn(url, { ...init, headers: { ...headers, ...(init.headers as Record<string, string>) } });
+    } catch (error) {
+      const cause = error instanceof Error ? (error as Error & { cause?: { code?: unknown } }).cause : undefined;
+      const code = ["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT"].find((c) => c === cause?.code) ?? "NETWORK_ERROR";
+      // 고정 분류만 기록: URL·키·요청/응답 본문·오류 message/stack은 출력하지 않는다.
+      console.error("[payment-storage]", JSON.stringify({ operation: init.method, status: 0, code }));
+      throw new Error("supabase network error");
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { code?: unknown };
+      const known = ["42501", "23502", "23503", "23505", "23514", "42P01", "42703", "PGRST106", "PGRST202", "PGRST204", "PGRST205", "PGRST301", "PGRST302", "PGRST303"];
+      const code = known.find((c) => c === body.code) ?? "HTTP_ERROR";
+      console.error("[payment-storage]", JSON.stringify({ operation: init.method, status: res.status, code }));
+      throw new Error(`supabase ${res.status}`);
+    }
     const text = await res.text();
     return text ? JSON.parse(text) : null;
   }
