@@ -7,6 +7,7 @@
 //
 // 공유 문구의 공개 URL 은 빌드 시 PALJA_PUBLIC_URL 환경 변수로 넣는다 (없으면 링크 없이 공유).
 import * as esbuild from "esbuild";
+import { writeAdsenseFiles } from "./adsense-files.mjs";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -79,7 +80,7 @@ const paymentsLabel = paymentsMode === "off" || !tossClientKey ? "off (준비 �
 
 rmSync(outdir, { recursive: true, force: true });
 mkdirSync(`${outdir}/assets`, { recursive: true });
-cpSync("web/index.html", `${outdir}/index.html`);
+writeAdsenseFiles(outdir, readFileSync("web/index.html", "utf8"), dev || noRemote ? null : process.env.PALJA_ADSENSE_PUBLISHER_ID);
 if (dev) cpSync("web/debug.html", `${outdir}/debug.html`);
 
 const options = {
