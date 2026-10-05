@@ -355,3 +355,6 @@
 - User confirmed configured AUD and login email match. Actual authenticated request still receives worker 403; root cause remains unconfirmed.
 - Added bounded failure codes for configuration/host/header/claims/time/email/certificate/signature/runtime stages, without exposing token, keys, claim values or exception messages. Authentication remains fail-closed.
 - Type/API checks and 256 tests PASS; Cloudflare build PASS. Production authenticated diagnosis awaits deployed code and user browser result.
+
+- Production user reported AUTH_CERT_FETCH: JWT claims checks passed, failure is certificate acquisition before signature verification. Public cert endpoint independently returns HTTP 200 and two RSA keys; worker-specific cause still unconfirmed.
+- Wrapped global fetch invocation; manual redirects remain rejected via non-2xx status. Separate timeout setup/network/type/HTTP/JSON diagnostics without raw exceptions or response bodies. Regression checks include 302/403/500 and malformed JSON. 256 tests and Cloudflare build PASS.

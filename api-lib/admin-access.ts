@@ -3,7 +3,7 @@ import { webcrypto } from "node:crypto";
 type Env = Record<string, string | undefined>;
 const decode = (part: string) => Buffer.from(part, "base64url");
 /** Validate the signature as well as the claims; a forwarded email header is never authentication. */
-export async function adminIdentity(request: Request, env: Env, fetcher: typeof fetch = fetch, diagnose: (code: string) => void = () => {}): Promise<string | null> {
+export async function adminIdentity(request: Request, env: Env, fetcher: typeof fetch = (input, init) => fetch(input, init), diagnose: (code: string) => void = () => {}): Promise<string | null> {
   const reject = (code: string) => { diagnose(code); return null; };
   const team = env.ADMIN_ACCESS_TEAM_DOMAIN?.trim().replace(/\/$/, "");
   const aud = env.ADMIN_ACCESS_AUD?.trim();
@@ -28,9 +28,12 @@ export async function adminIdentity(request: Request, env: Env, fetcher: typeof 
     if (!Number.isFinite(claims.exp) || claims.exp! <= now || (claims.nbf !== undefined && (!Number.isFinite(claims.nbf) || claims.nbf > now)) || !Number.isFinite(claims.iat) || claims.iat! > now) return reject("AUTH_TIME");
     if (typeof claims.email !== "string" || !emails.includes(claims.email.toLowerCase())) return reject("AUTH_EMAIL");
     if (header.alg !== "RS256" || !header.kid || claims.iss !== team || !Array.isArray(claims.aud) || !claims.aud.includes(aud) || !Number.isFinite(claims.exp) || claims.exp! <= now || (claims.nbf !== undefined && (!Number.isFinite(claims.nbf) || claims.nbf > now)) || !Number.isFinite(claims.iat) || claims.iat! > now || !claims.sub || typeof claims.email !== "string" || !emails.includes(claims.email.toLowerCase())) return reject("AUTH_CLAIMS");
+    stage = "AUTH_CERT_TIMEOUT_SETUP";
+    const signal = AbortSignal.timeout(8000);
     stage = "AUTH_CERT_FETCH";
-    const response = await fetcher(`${team}/cdn-cgi/access/certs`, { signal: AbortSignal.timeout(8000), redirect: "error" });
-    if (!response.ok) return reject(stage);
+    const response = await fetcher(`${team}/cdn-cgi/access/certs`, { signal, redirect: "manual", headers: { Accept: "application/json" } });
+    if (!response.ok) return reject(`AUTH_CERT_HTTP_${response.status}`);
+    stage = "AUTH_CERT_JSON";
     const jwks = await response.json() as { keys?: (webcrypto.JsonWebKey & { kid?: string })[] };
     const jwk = jwks.keys?.find(k => k.kid === header.kid && k.kty === "RSA");
     if (!jwk) return reject("AUTH_CERT_KEY");
@@ -38,5 +41,11 @@ export async function adminIdentity(request: Request, env: Env, fetcher: typeof 
     const key = await webcrypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
     if (!await webcrypto.subtle.verify("RSASSA-PKCS1-v1_5", key, decode(s), Buffer.from(`${h}.${p}`))) return reject("AUTH_SIGNATURE");
     return claims.email.toLowerCase();
-  } catch { return reject(stage); }
+  } catch (error) {
+    if (stage === "AUTH_CERT_FETCH") {
+      const name = error instanceof Error ? error.name : "";
+      return reject(name === "TimeoutError" || name === "AbortError" ? "AUTH_CERT_TIMEOUT" : name === "TypeError" ? "AUTH_CERT_TYPE_ERROR" : "AUTH_CERT_NETWORK");
+    }
+    return reject(stage);
+  }
 }

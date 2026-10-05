@@ -28,7 +28,15 @@ test("auth diagnostics identify failed stages without exposing credentials or ac
   assert.equal(reason, "AUTH_EMAIL");
   const failed = (async () => { throw new Error("private information"); }) as typeof fetch;
   assert.equal(await adminIdentity(request(token()), env, failed, report), null);
-  assert.equal(reason, "AUTH_CERT_FETCH");
+  assert.equal(reason, "AUTH_CERT_NETWORK");
+  for (const status of [302, 403, 500]) {
+    const httpFailure = (async () => new Response("private response", { status })) as typeof fetch;
+    assert.equal(await adminIdentity(request(token()), env, httpFailure, report), null);
+    assert.equal(reason, `AUTH_CERT_HTTP_${status}`);
+  }
+  const invalidJson = (async () => new Response("private invalid JSON")) as typeof fetch;
+  assert.equal(await adminIdentity(request(token()), env, invalidJson, report), null);
+  assert.equal(reason, "AUTH_CERT_JSON");
   reason = "";
   assert.equal(await adminIdentity(request(token()), env, fetchKeys, report), "owner@example.com");
   assert.equal(reason, "");
