@@ -9,4 +9,4 @@ export type {
   Relation,
   Policy,
 } from "../lib/saju";
-export type { Signal, Score, Reading } from "../lib/interpretation";
+export type { Signal, Score, ScoreSet, Domain, Polarity } from "../lib/interpretation";

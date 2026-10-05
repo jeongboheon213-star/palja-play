@@ -74,3 +74,15 @@ test("계산 계층은 데이터 파일을 직접 import하지 않고 주입받�
     assert.ok(!/from "[./]*\/data\//.test(text) && !/from "\.\.\/\.\.\/data/.test(text), f);
   }
 });
+
+test("해석 계층은 12운성을 읽지 않는다 (twelveStagesInReadings = false)", () => {
+  for (const { f, text } of src.filter((s) => s.f.startsWith("lib/interpretation"))) {
+    assert.ok(!/\.twelveStages\b|twelveStageOf|TWELVE_STAGE/.test(text), f);
+  }
+});
+
+test("해석 계층은 사주를 다시 계산하지 않는다 (기둥·절기 계산 함수 미사용)", () => {
+  for (const { f, text } of src.filter((s) => s.f.startsWith("lib/interpretation"))) {
+    assert.ok(!/calculate(Year|Month|Day|Hour|Four)Pillars?\(|computeSaju|locate\(|termsInRange/.test(text), f);
+  }
+});

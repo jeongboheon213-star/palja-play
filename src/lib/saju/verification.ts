@@ -84,7 +84,10 @@ export const VERIFICATION_STATUS: VerificationStatus = Object.freeze({
     note: "Phase 3D: 일간 기준 계산 필드만 두며 rule=unverified. Signals/해석에 연결하지 않음.",
   }),
   relations: Object.freeze({ level: "not-verified", note: "Phase 3D: 천간합·충, 지지 육합·충·형·해·파·삼합·반합·방합. confirmed 기둥끼리만. 외부 대조 전." }),
-  scoring: Object.freeze({ level: "not-verified", note: "미구현." }),
+  scoring: Object.freeze({
+    level: "not-verified",
+    note: "Phase 4: Signal 규칙 + 7개 서비스 지표 (score-0.1.0). 전통 사주의 절대 측정값이 아니며 사용자 피드백으로 조정 예정.",
+  }),
   interpretation: Object.freeze({ level: "not-verified", note: "미구현." }),
 }) as VerificationStatus;
 

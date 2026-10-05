@@ -61,3 +61,22 @@
 
 테스트 변경 기록
 - `policies.test.ts` SCHEMA_VERSION 기대값 0.2.0 으로 갱신.
+
+## 2026-10-05 — Phase 4: Signals + Score
+
+만든 것 (`src/lib/interpretation/`)
+- 구조: SajuData → `extractFeatures` → `deriveSignals` → `scoreSignals` → (Phase 5 Reading). 사주 원본을 바로 문장으로 만들지 않는다.
+- Signal: `id`, `domain`(personality/wealth/love/career/business/relationship/execution/flow), `polarity`(positive/negative/neutral), `strength`(1~3), `evidence`(출처·기둥 위치·근거 요약), `sourceVerification`(근거 데이터 검증 상태 중 최저).
+- 특징값: 십성 그룹 개수(일간 제외 천간 + 지지 정기), 오행 과다/결핍, 일간 힘 지표(서비스 단순화, 전통 신강/신약 판정 아님), 합/충/형해파.
+- 연애의 배우자 별은 전통 관례대로 남성=재성, 여성=관성 (근거 문구에 기록).
+- 7개 점수(재물력·연애력·사업력·직업력·인간관계·실행력·운의 흐름): 난수 없음, 각 점수에 근거 Signal id 저장, `kind: "service-indicator"`, `SCORE_VERSION = score-0.1.0`.
+- 점수 공식: raw(Σ+강도 − Σ−강도) → 영역별 center/spread 로 표준화 → `62 + 30·tanh(z/1.6)`. 처음 단순 합산 공식은 직업력 중앙값 96 등 쏠림이 심해 교체. center/spread 는 내부 표본(1962~2026) 값이며 실제 사용자 분포가 아님.
+- "운의 흐름"은 대운·세운이 없으므로 타고난 오행 균형·합충 성향만 반영 (시기 판단 아님).
+- uncertain 기둥은 근거로 쓰지 않음. 일주 uncertain 이면 Signal 자체를 만들지 않음. 12운성 미사용.
+
+표본 분포 (1962~2026, 5일 간격 × 시간 4종, score-0.1.0)
+- 각 점수 평균 약 62, p10 약 40, p90 약 80, 최소 33 / 최대 91.
+
+테스트 (+12 → 총 138)
+- 필수 필드, 7개 이름 유지, 근거 id 존재, 스윕(근거·범위·결정론·단조롭지 않음·평균 50~75), 100회 결정론, 배우자 별 성별 기준, uncertain/시간 미상 위치 제외, 일주 uncertain → null, 근거 검증 상태(일간만 verified-internally), 12운성을 바꿔도 Signals 동일.
+- 아키텍처: 해석 계층은 12운성·기둥/절기 계산 함수를 쓰지 않는다.
