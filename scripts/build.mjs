@@ -59,6 +59,18 @@ if (supabaseUrl && !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(supabaseUrl))
 }
 const supabaseLabel = supabaseUrl && supabaseAnonKey ? `설정됨 (${new URL(supabaseUrl).host}, ${urlEnv.name}/${keyEnv.name})` : "미설정";
 
+// 결제 (토스페이먼츠). 브라우저에는 결제 모드와 "클라이언트 키(test_ck/live_ck)"만 들어간다.
+// TOSS_SECRET_KEY · SUPABASE_SERVICE_ROLE_KEY 는 서버 함수(api/)에서만 읽고 여기서는 절대 읽지 않는다.
+const paymentsMode = noRemote ? "off" : process.env.PALJA_PAYMENTS_MODE || "off";
+const tossClientKey = paymentsMode === "off" ? null : process.env.PALJA_TOSS_CLIENT_KEY || null;
+if (!["off", "test", "live"].includes(paymentsMode)) throw new Error(`PALJA_PAYMENTS_MODE 는 off | test | live 중 하나여야 합니다: ${paymentsMode}`);
+if (tossClientKey && /_(g?sk)_/.test(tossClientKey)) throw new Error("PALJA_TOSS_CLIENT_KEY 에 시크릿 키(…_sk_…)가 들어 있습니다. 브라우저에는 클라이언트 키(…_ck_…)만 넣으세요.");
+if (paymentsMode === "test" && tossClientKey && !/^test_(g?ck)_/.test(tossClientKey)) throw new Error("TEST 모드에는 test_ck_ 로 시작하는 클라이언트 키만 쓸 수 있습니다.");
+if (paymentsMode === "live" && (process.env.PALJA_ALLOW_LIVE_PAYMENTS !== "yes" || !/^live_(g?ck)_/.test(tossClientKey ?? ""))) {
+  throw new Error("LIVE 결제는 사용자 최종 승인(PALJA_ALLOW_LIVE_PAYMENTS=yes)과 live_ck_ 키가 있어야 빌드됩니다.");
+}
+const paymentsLabel = paymentsMode === "off" || !tossClientKey ? "off (준비 중 안내)" : `${paymentsMode} (${tossClientKey.slice(0, 8)}…)`;
+
 rmSync(outdir, { recursive: true, force: true });
 mkdirSync(`${outdir}/assets`, { recursive: true });
 cpSync("web/index.html", `${outdir}/index.html`);
@@ -80,6 +92,8 @@ const options = {
     __PALJA_PUBLIC_URL__: JSON.stringify(publicUrl),
     __PALJA_SUPABASE_URL__: JSON.stringify(supabaseUrl),
     __PALJA_SUPABASE_ANON_KEY__: JSON.stringify(supabaseAnonKey),
+    __PALJA_PAYMENTS_MODE__: JSON.stringify(tossClientKey ? paymentsMode : "off"),
+    __PALJA_TOSS_CLIENT_KEY__: JSON.stringify(tossClientKey),
   },
   logLevel: "info",
 };
@@ -92,5 +106,5 @@ if (serve) {
 } else {
   const r = await esbuild.build({ ...options, metafile: true });
   const out = Object.entries(r.metafile.outputs).map(([f, o]) => `${f} ${(o.bytes / 1024).toFixed(1)}KB`);
-  console.log(`[${dev ? "development" : "production"}] ${out.join(", ")}  supabase: ${supabaseLabel}`);
+  console.log(`[${dev ? "development" : "production"}] ${out.join(", ")}  supabase: ${supabaseLabel}  payments: ${paymentsLabel}`);
 }

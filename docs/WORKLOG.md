@@ -235,3 +235,13 @@
   - 첫 실행에서 CORS 확인 요청(OPTIONS)까지 세어 실패 → POST 만 세도록 스크립트 수정 후 재실행.
 - Supabase 대시보드 확인: production 피드백 2건(모두 "[PROD QA]" 표시, 실행 2회), development 1건("[연결 테스트]"), QA 세션 2개의 이벤트(클릭·관심 포함).
 - iPhone Safari: 미확인 → **iPhone Safari manual QA required** (사용자 직접).
+
+## 2026-10-05 — B. 유료결제 준비 (TEST MODE 구조, 키 연결 전)
+
+- 토스 공식 문서 확인: confirm `POST /v1/payments/confirm`(Basic 시크릿키), `Idempotency-Key` 는 모든 POST 지원·15일·같은 키는 첫 응답 반환, 조회 `GET /v1/payments/orders/{orderId}`, 취소 `POST /v1/payments/{paymentKey}/cancel`, 결제창 v2 `js.tosspayments.com/v2/standard` + `ANONYMOUS`, orderId 6~64자. Vercel Functions: `api/*.ts` 에 `export async function POST(request: Request)`.
+- 구현: `supabase/migrations/20261005010000_orders.sql`(RLS, 브라우저 권한 없음), `src/server/payments/*`(서버 가격·변조 차단·잠금+멱등 승인·reconcile·실패 기록·권한·환불), `src/server/premium/*`(서버 전용 정식 리포트: 31개 근거별 WHY 심화 + HOW 3가지 + 체크리스트, WHEN 제외), `api/*`(4개 함수), `api-lib/env.ts`(모드·키 검사, LIVE 잠금), `web/src/payments.ts`(결제창·successUrl/failUrl 처리·구매 코드·구매 다시 보기·다른 기기 복구), `scripts/local-server.ts`(로컬 결제 테스트 서버).
+- 빌드 안전장치: 클라이언트 키 자리에 시크릿 키 → 중단, TEST 모드에 live 키 → 중단, LIVE 는 `PALJA_ALLOW_LIVE_PAYMENTS=yes` 없으면 중단. 서버 리포트 문구가 브라우저 번들에 0건.
+- 결제 모드 기본 off → Production 화면은 기존 "준비 중" 그대로, api 는 503 PAYMENTS_DISABLED.
+- 테스트: 결제 단위 25개(가짜 토스·저장소) 포함 217/217, E2E 35/35.
+- 문서: `docs/PAYMENT_DESIGN.md`, `docs/PAID_LAUNCH_CHECKLIST.md` (법률 검토 미완료 명시).
+- 남은 일(사용자 단계 필요): orders SQL 실행, 토스 TEST 키 발급·입력, Supabase service_role 키 입력 → 실제 TEST 결제.

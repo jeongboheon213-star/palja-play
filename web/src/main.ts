@@ -3,7 +3,10 @@
 
 import { computeBetaResult, type BetaResult } from "../../src/lib/engine";
 import { validateSajuInput } from "../../src/lib/validation";
-import { toResultView, RESULT_ERROR_TEXT, type ResultView } from "../../src/lib/ui/resultView";
+import { toResultView, RESULT_ERROR_TEXT, type ResultView, type PremiumCardView } from "../../src/lib/ui/resultView";
+import { deriveSignals } from "../../src/lib/interpretation";
+import { PREMIUM_SPECS } from "../../src/lib/engine";
+import { PAYMENTS_ENABLED, PAYMENTS_MODE, startCheckout, handlePaymentReturn, fetchReport, findStoredPurchase, rememberRestoredPurchase, type PremiumReport, type StoredPurchase } from "./payments";
 import {
   battleCardFrom,
   battleFromHash,
@@ -41,7 +44,7 @@ function h(tag: string, attrs: Record<string, string | boolean | ((e: Event) => 
 }
 
 // ── 화면 전환 ──────────────────────────────────────────────
-const SCREENS = ["s-landing", "s-input", "s-loading", "s-result"] as const;
+const SCREENS = ["s-landing", "s-input", "s-loading", "s-result", "s-report"] as const;
 type Screen = (typeof SCREENS)[number];
 function show(id: Screen): void {
   for (const s of SCREENS) document.getElementById(s)!.classList.toggle("on", s === id);
@@ -291,7 +294,22 @@ function renderResult(c: Current): void {
 }
 
 // ── Premium ───────────────────────────────────────────────
-let sheetProduct: { name: string; interestEvent: string | null } | null = null;
+let sheetProduct: PremiumCardView | null = null;
+
+/** 상품 영역의 Signal id (결제·리포트 요청에 쓰는 값. 생년월일이 아니다) */
+function productSignalIds(c: Current, productId: string): string[] {
+  const domains = PREMIUM_SPECS.find((s) => s.id === productId)?.domains ?? [];
+  return (deriveSignals(c.result.saju)?.signals ?? []).filter((s) => (domains as readonly string[]).includes(s.domain)).map((s) => s.id);
+}
+
+/** 정식 리포트에 들어가는 내용 (판매 전 안내) */
+const REPORT_INCLUDES = [
+  "나의 패턴 한눈에 보기",
+  "WHY: 근거별 '왜 이런 패턴인가' 기본 + 심화 설명",
+  "HOW: 근거별 바로 해 볼 실천 3가지",
+  "반전 포인트 심층 (해당될 때)",
+  "나만의 실천 체크리스트 5개",
+];
 
 function renderPremium(c: Current): HTMLElement {
   return h(
@@ -330,28 +348,50 @@ function renderPremium(c: Current): HTMLElement {
             type: "button",
             onclick: () => {
               if (p.clickEvent) rt.track(p.clickEvent as EventName, { productId: p.productId }, c.resultId);
-              openSheet(p.name, p.interestEvent);
+              openSheet(p);
             },
           },
           `리포트 열어보기 · ${p.priceLabel}`,
         ),
       ),
     ),
-    h("p", { class: "mute small", style: "margin-top:10px" }, "가격은 Beta 테스트 가격이에요. 지금은 결제가 일어나지 않아요."),
+    h(
+      "p",
+      { class: "mute small", style: "margin-top:10px" },
+      PAYMENTS_ENABLED
+        ? PAYMENTS_MODE === "test"
+          ? "지금은 테스트 결제 환경이에요. 실제 돈이 나가지 않아요."
+          : "결제는 토스페이먼츠로 안전하게 처리돼요."
+        : "가격은 Beta 테스트 가격이에요. 지금은 결제가 일어나지 않아요.",
+    ),
   );
 }
 
-function openSheet(name: string, interestEvent: string | null): void {
-  sheetProduct = { name, interestEvent };
-  $("#sheet-title").textContent = name;
-  const btn = $<HTMLButtonElement>("#sheet-interest");
-  btn.disabled = false;
-  btn.textContent = "이 리포트가 나오면 보고 싶어요";
+function openSheet(p: PremiumCardView): void {
+  sheetProduct = p;
+  $("#sheet-title").textContent = p.name;
+  $("#sheet-err").textContent = "";
+  $("#sheet-preparing").hidden = PAYMENTS_ENABLED;
+  $("#sheet-pay").hidden = !PAYMENTS_ENABLED;
+  const focusEl = PAYMENTS_ENABLED ? $<HTMLButtonElement>("#sheet-buy") : $<HTMLButtonElement>("#sheet-interest");
+  if (PAYMENTS_ENABLED && current) {
+    $("#sheet-pay-mode").textContent = PAYMENTS_MODE === "test" ? "🧪 테스트 결제 환경 — 실제 돈이 나가지 않아요." : "결제는 토스페이먼츠로 처리돼요.";
+    $("#sheet-includes").replaceChildren(...REPORT_INCLUDES.map((t) => h("li", {}, t)));
+    const buy = $<HTMLButtonElement>("#sheet-buy");
+    buy.disabled = false;
+    buy.textContent = `${PAYMENTS_MODE === "test" ? "테스트 결제하기" : "결제하기"} · ${p.priceLabel}`;
+    $("#sheet-owned").hidden = !findStoredPurchase(p.productId, productSignalIds(current, p.productId));
+    ($("#sheet-code") as HTMLInputElement).value = "";
+  } else {
+    const btn = $<HTMLButtonElement>("#sheet-interest");
+    btn.disabled = false;
+    btn.textContent = "이 리포트가 나오면 보고 싶어요";
+  }
   const s = $("#sheet");
   s.hidden = false;
   $("#sheet-bg").classList.add("on");
   requestAnimationFrame(() => s.classList.add("on"));
-  btn.focus({ preventScroll: true });
+  focusEl.focus({ preventScroll: true });
 }
 function closeSheet(): void {
   const s = $("#sheet");
@@ -372,6 +412,123 @@ $("#sheet-interest").addEventListener("click", () => {
   toast("관심이 기록됐어요. 정식 리포트를 만드는 데 반영할게요.");
   window.setTimeout(closeSheet, 900);
 });
+$("#sheet-buy").addEventListener("click", async () => {
+  if (!sheetProduct || !current) return;
+  const buy = $<HTMLButtonElement>("#sheet-buy");
+  buy.disabled = true;
+  buy.textContent = "결제창을 여는 중…";
+  if (sheetProduct.interestEvent) rt.track(sheetProduct.interestEvent as EventName, { stage: "checkout" }, current.resultId);
+  const r = await startCheckout({
+    productId: sheetProduct.productId,
+    resultId: current.resultId,
+    signalIds: productSignalIds(current, sheetProduct.productId),
+    characterName: current.view.character.name,
+  });
+  if (!r.ok) {
+    $("#sheet-err").textContent = r.message;
+    buy.disabled = false;
+    buy.textContent = `다시 시도하기 · ${sheetProduct.priceLabel}`;
+  }
+});
+$("#sheet-owned").addEventListener("click", async () => {
+  if (!sheetProduct || !current) return;
+  const owned = findStoredPurchase(sheetProduct.productId, productSignalIds(current, sheetProduct.productId));
+  if (!owned) return;
+  const r = await fetchReport(owned.purchaseCode, owned.productId, owned.signalIds);
+  if (!r.ok) {
+    $("#sheet-err").textContent = r.message;
+    return;
+  }
+  closeSheet();
+  renderReport(r.report, owned);
+});
+$("#sheet-restore").addEventListener("click", async () => {
+  if (!sheetProduct || !current) return;
+  const code = ($("#sheet-code") as HTMLInputElement).value.trim();
+  const signalIds = productSignalIds(current, sheetProduct.productId);
+  const r = await fetchReport(code, sheetProduct.productId, signalIds);
+  if (!r.ok) {
+    $("#sheet-err").textContent = r.message;
+    return;
+  }
+  const purchase = { orderId: "restored", productId: sheetProduct.productId, purchaseCode: code.toUpperCase(), signalIds, characterName: current.view.character.name };
+  rememberRestoredPurchase(purchase);
+  closeSheet();
+  renderReport(r.report, purchase);
+});
+
+// ── Premium 리포트 화면 (서버 승인 후에만) ──────────────────────
+function renderReport(report: PremiumReport, purchase: StoredPurchase | null, notice?: string): void {
+  const copyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      toast("구매 코드를 복사했어요.");
+    } catch {
+      toast("길게 눌러 직접 복사해 주세요.");
+    }
+  };
+  const codeBox = purchase
+    ? h(
+        "div",
+        { class: "box", id: "purchase-code-box" },
+        h("p", { style: "margin:0;font-weight:700" }, "🔑 구매 코드"),
+        h("p", { class: "d", style: "font-size:24px;margin:6px 0;letter-spacing:.06em" }, purchase.purchaseCode),
+        h("p", { class: "mute small", style: "margin:0" }, "다른 기기에서 다시 볼 때 필요해요. 화면을 캡처하거나 적어 두세요. 같은 생년월일·시간으로 결과를 만든 뒤 '구매 코드로 열기'에 넣으면 열려요."),
+        h("button", { class: "btn ghost", type: "button", onclick: () => void copyCode(purchase.purchaseCode) }, "구매 코드 복사"),
+      )
+    : null;
+  $("#s-report").replaceChildren(
+    h(
+      "div",
+      { class: "result" },
+      notice ? h("div", { class: "notice" }, notice) : null,
+      h("p", { class: "tag" }, "PREMIUM · WHY + HOW"),
+      h("h1", { style: "font-size:34px" }, report.title),
+      purchase ? h("p", { class: "mute" }, `${purchase.characterName}의 리포트`) : null,
+      codeBox,
+      h("h2", {}, "나의 패턴 한눈에 보기"),
+      h("div", {}, report.summary.map((s) => h("span", { class: "pill" }, `#${s}`))),
+      h("h2", {}, "WHY · 왜 이런 패턴일까"),
+      report.why.map((w) => h("div", { class: "blk" }, h("p", { style: "font-weight:700;margin-bottom:4px" }, w.label), h("p", {}, w.text), h("p", { class: "mute" }, w.detail))),
+      h("h2", {}, "HOW · 이렇게 활용해 보세요"),
+      report.how.map((x) => h("div", { class: "box" }, h("p", { style: "font-weight:700;margin:0 0 6px" }, x.label), h("ul", { class: "list good" }, x.steps.map((s) => h("li", {}, s))))),
+      report.reversal ? [h("h2", {}, "반전 포인트 심층"), h("div", { class: "rev" }, h("p", { style: "margin:0" }, report.reversal))] : null,
+      h("h2", {}, "나만의 실천 체크리스트"),
+      h("ul", { class: "list trait" }, report.checklist.map((t) => h("li", {}, t))),
+      report.notIncluded.map((t) => h("p", { class: "mute small", style: "margin-top:16px" }, `ℹ️ ${t}`)),
+      h("p", { class: "note" }, "사주팔자PLAY는 전통 명리 요소를 기반으로 만든 엔터테인먼트 서비스입니다. 리포트는 참고용이며 투자·의료·법률 판단의 근거가 아니에요."),
+      h("button", { class: "btn ghost", type: "button", onclick: () => (current ? show("s-result") : show("s-landing")) }, current ? "내 결과로 돌아가기" : "처음으로"),
+    ),
+  );
+  show("s-report");
+}
+
+/** 토스 결제창에서 돌아왔을 때 */
+async function handleReturnIfAny(): Promise<void> {
+  if (!PAYMENTS_ENABLED || !/[?&]pay=/.test(location.search)) return;
+  show("s-loading");
+  $("#steps").replaceChildren(h("li", { class: "now" }, "결제를 확인하고 있어요"));
+  const out = await handlePaymentReturn();
+  if (out.kind === "paid") return renderReport(out.report, out.purchase);
+  if (out.kind === "paid-no-report") {
+    $("#s-report").replaceChildren(
+      h(
+        "div",
+        { class: "result" },
+        h("h2", {}, "결제 확인 중"),
+        h("div", { class: "notice" }, out.message),
+        out.purchase ? h("p", {}, `구매 코드: ${out.purchase.purchaseCode}`) : null,
+        h("button", { class: "btn", type: "button", onclick: () => location.reload() }, "다시 확인하기"),
+      ),
+    );
+    return show("s-report");
+  }
+  if (out.kind === "failed") {
+    show("s-landing");
+    toast(out.message);
+  }
+}
+void handleReturnIfAny();
 
 // ── Feedback ──────────────────────────────────────────────
 function renderFeedback(c: Current): HTMLElement {
