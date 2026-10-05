@@ -245,3 +245,4 @@
 - 테스트: 결제 단위 25개(가짜 토스·저장소) 포함 217/217, E2E 35/35.
 - 문서: `docs/PAYMENT_DESIGN.md`, `docs/PAID_LAUNCH_CHECKLIST.md` (법률 검토 미완료 명시).
 - 남은 일(사용자 단계 필요): orders SQL 실행, 토스 TEST 키 발급·입력, Supabase service_role 키 입력 → 실제 TEST 결제.
+- Vercel 배포 후 함수 4개가 FUNCTION_INVOCATION_FAILED. 원인: Node ESM 이 확장자 없는 import(`../src/server/...`)를 찾지 못함(로컬 재현: ERR_MODULE_NOT_FOUND). 해결: 소스를 `api-src/` 로 옮기고 `scripts/build-api.mjs` 로 함수별 단일 파일 `api/*.js` 생성·커밋. `npm run check` 에 생성 파일 최신 여부 검사 추가.

@@ -24,10 +24,10 @@ if (existsSync(".env.local")) {
 process.env.SUPABASE_URL ??= process.env.PALJA_SUPABASE_URL;
 
 const routes: Record<string, () => Promise<{ POST: (r: Request) => Promise<Response> }>> = {
-  "/api/orders": () => import("../api/orders"),
-  "/api/payments/confirm": () => import("../api/payments/confirm"),
-  "/api/payments/fail": () => import("../api/payments/fail"),
-  "/api/premium/report": () => import("../api/premium/report"),
+  "/api/orders": () => import("../api-src/orders"),
+  "/api/payments/confirm": () => import("../api-src/payments/confirm"),
+  "/api/payments/fail": () => import("../api-src/payments/fail"),
+  "/api/premium/report": () => import("../api-src/premium/report"),
 };
 const ROOT = "dist-dev";
 const MIME: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8" };
