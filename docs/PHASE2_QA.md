@@ -13,8 +13,10 @@
 | `npm run build` | 결제 OFF, Production 빌드 성공(배포 아님) |
 | `node scripts/e2e-payment.mjs` | 로컬 모의 API 결제 화면 7/7 |
 | `npm run e2e` | 기존 화면+티어 36/36, 배틀 공유 매트릭스 34/34 |
+| GitHub Actions #4, 코드 `17a24c4` | Linux/Node 22 check·기준표·전체 분포 재현 통과 |
+| GitHub Actions #4 `payment-sql` | PostgreSQL 16 migration/재실행·권한·불변 시각·열기/취소 경쟁·원자적 제한 통과 |
 
-최신 커밋의 GitHub Actions 결과는 완료 후 진행판에 기록한다. 과거 PR 커밋 `84d70f7`의 Actions 성공 기록은 확인했지만 이를 이번 변경의 성공으로 대신하지 않는다.
+코드 커밋 `17a24c4`의 [Actions #4](https://github.com/jeongboheon213-star/palja-play/actions/runs/37287376822) 완료·success를 실제 확인했다. 독립 DB 검사의 예상 권한 거부/불변 시각 예외도 로그에서 확인했다. 과거 PR 커밋 `84d70f7`의 성공을 이번 변경의 성공으로 대신하지 않았다.
 
 결제 테스트는 가짜 Toss·저장소를 사용한다. 최초 제공 1회 기록, 열람 요청 여부, 저장 실패 시 본문 미반환, 재열람, 권한 취소 경쟁, 미열람 취소, 열람 주문의 관리자 예외 환불, 취소 확인 중 열람 차단, DB 저장 재시도, 부분취소·불확실 응답 차단, 코드 재발급 후 이전 코드 차단을 검사했다.
 

@@ -307,3 +307,4 @@
 - 실제 로컬 검사: npm ci, check 243/243, E2E 36/36, 배틀 34/34, 모의 결제 브라우저 7/7. 테스트 오류(RLS 정책/행 잠금 오인) 원인 수정하며 기존 보안 조건을 유지·강화. 최초 모의 브라우저 빌드가 결제 OFF로 실패한 원인을 고치고 재검사함.
 - 분석 재현 비교·최신 GitHub CI 기록은 PROGRESS에 후속 기록. 독립 PostgreSQL CI 검사를 추가해 실제 Supabase와 분리함.
 - npm 패키지 추가 없음. main/Production/LIVE 변경 없음. 다음은 사용자 SQL Editor Run 후 Preview TEST 키 연결.
+- 후속 확인: 전체 분포를 다시 실행한 JSON과 저장 결과가 완전히 동일. GitHub 코드 커밋 17a24c4 업로드 및 Actions #4 전체 success 확인(독립 PostgreSQL 동시성·권한 검사 포함). 사용자용 안내와 검증 기록을 같은 브랜치에 추가 저장.

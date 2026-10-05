@@ -45,7 +45,7 @@
 - 5일 간격 표본의 60일 주기 편향을 발견해 하루 간격·12시간대로 확장하고 실제 실행함. 저장 결과: `tier-distribution.json`, 설계: `TIER_DESIGN.md`.
 - 종합점수 경계: S+ 79 / S 76 / A+ 72 / A 67 / B+ 62 / B 55 / C 그 아래. 동점 포함 상위 비율로 계산한다.
 - content_opened_at, DB 행 잠금, REFUND_REQUESTED, 제한 RPC까지 준비. **실제 Supabase에는 아직 실행하지 않음.**
-- SQL을 테스트할 독립 PostgreSQL CI job을 추가함. 최신 커밋 Actions 결과는 업로드 후 확인 대기.
+- 코드 커밋 `17a24c4`의 [GitHub Actions #4](https://github.com/jeongboheon213-star/palja-play/actions/runs/37287376822) 성공 확인. Linux/Node 22 타입·243개 테스트·분포 재현 검사와 독립 PostgreSQL 16 migration/동시성/권한/제한 검사가 모두 통과함. 실제 Supabase 검증으로 대신하지 않는다.
 - 전체 분포를 다시 실행해 JSON 전체가 저장 결과와 동일함을 실제 확인했고, 실행용 기준표 일치 검사도 통과함.
 - 실제 실행 목록·수정한 테스트의 이유: `PHASE2_QA.md`. 구현·운영 한계: `PREMIUM_ACCESS_IMPLEMENTATION.md`.
 - 새 npm 패키지 추가 없음. main merge·Production 배포·LIVE 활성화 없음.
@@ -57,3 +57,5 @@
 3. 검증 후 Vercel **Preview**에 Toss TEST/서버 키를 직접 입력. 이후 실제 TEST 결제·환불 확인.
 
 법률 문구·사업자 정보·실기기·웹훅과 외부 취소 동기화·정기 보관 만료 처리 등 LIVE 준비는 미완료다. LIVE는 명시적 최종 승인 전 계속 OFF다.
+
+쉬운 사용자 안내: `NEXT_STEP_FOR_OWNER.md`. 코드·분포·검사 결과·SQL·화면 캡처는 기존 작업 브랜치와 Draft PR #1에 저장했다.
