@@ -223,3 +223,15 @@
 - Supabase: 공개 키로 SELECT 401, UPDATE/DELETE 42501(권한 없음), UPSERT 401. 카탈로그 조회 결과 beta_feedback·beta_events 모두 anon=INSERT 만, authenticated 권한 없음, RLS ON, 정책은 INSERT(anon) 하나씩.
 - 테스트: 단위 192/192, E2E 35/35, production 번들 검사(개발 코드·비밀 키·debug 없음).
 - `vercel.json` main 자동 배포 다시 켬 → main push 로 Production 배포.
+
+## 2026-10-05 — A. 무료 Beta LIVE 확인
+
+- Vercel Production 배포 성공 (커밋 eb62bf2). 공개 주소 **https://palja-play.vercel.app** (로그인 없이 200). 개별 배포 주소(…-play-5e80.vercel.app)는 Vercel 기본 보호(Standard Protection)로 계속 로그인 필요 → 보호 설정 변경 불필요.
+- 공개 번들 검사: Supabase 주소 = nqplgqhpkdnmubfycdbs, 키는 JWT role=anon (Vercel–Supabase 연동 값), 비밀 키·개발용 코드·localhost 없음, 가격 2900, /debug.html·/assets/debug.js 404, 보안 헤더(nosniff, referrer-policy) 적용.
+- `scripts/prod-qa.mjs` (공개 URL 대상, Edge headless 2개 = 서로 다른 사용자): 11/11 통과.
+  - 나: 랜딩 → 입력 → 계산 → 결과 → Premium(클릭·관심) → 피드백 → 배틀(문자 앱 열기 후 번호 지움, 링크 복사)
+  - 친구(별도 프로필 브라우저): 배틀 링크 → 초대 → 입력 → 계산 → VS 결과 7라운드
+  - Supabase POST 모두 201, source=production. 개인정보 네트워크 검사: 생년월일·시간·성별·전화번호·rawInput·pillars 가 어떤 인터넷 요청에도 없음. 접속 호스트: fonts.googleapis.com, fonts.gstatic.com, Supabase, palja-play.vercel.app.
+  - 첫 실행에서 CORS 확인 요청(OPTIONS)까지 세어 실패 → POST 만 세도록 스크립트 수정 후 재실행.
+- Supabase 대시보드 확인: production 피드백 2건(모두 "[PROD QA]" 표시, 실행 2회), development 1건("[연결 테스트]"), QA 세션 2개의 이벤트(클릭·관심 포함).
+- iPhone Safari: 미확인 → **iPhone Safari manual QA required** (사용자 직접).
