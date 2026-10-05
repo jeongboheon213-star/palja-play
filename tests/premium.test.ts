@@ -26,9 +26,9 @@ test("상품 설정: 재물/연애/직업·사업 리포트 4,900원, Beta 테�
   for (const p of PREMIUM_SPECS) {
     assert.equal(p.betaTestPrice, true);
     assert.equal(p.paymentEnabled, false);
-    assert.equal(p.comingSoonMessage, "팔자PLAY Beta에서 준비 중인 기능입니다.");
+    assert.equal(p.comingSoonMessage, "사주팔자PLAY Beta에서 준비 중인 기능입니다.");
   }
-  assert.equal(PREMIUM_COMING_SOON_MESSAGE, "팔자PLAY Beta에서 준비 중인 기능입니다.");
+  assert.equal(PREMIUM_COMING_SOON_MESSAGE, "사주팔자PLAY Beta에서 준비 중인 기능입니다.");
   assert.equal(formatPriceKrw(4900), "4,900원");
   assert.equal(formatPriceKrw(12000), "12,000원");
 });

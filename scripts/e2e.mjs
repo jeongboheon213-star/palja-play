@@ -103,8 +103,9 @@ async function evaluate(expr) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function viewport(kind) {
   if (kind === "mobile") await cdp("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  else if (kind === "small") await cdp("Emulation.setDeviceMetricsOverride", { width: 320, height: 640, deviceScaleFactor: 2, mobile: true });
   else await cdp("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
-  await cdp("Emulation.setTouchEmulationEnabled", { enabled: kind === "mobile" });
+  await cdp("Emulation.setTouchEmulationEnabled", { enabled: kind !== "desktop" });
 }
 async function open(path = "/") {
   await cdp("Page.navigate", { url: BASE + path });
@@ -270,7 +271,7 @@ await check("Premium 클릭 → 바텀시트(결제 화면 아님) + premium_mon
   await evaluate("document.querySelector('.prod[data-product=premium_money] .btn').click(); true");
   await sleep(400);
   const sheet = await evaluate("({hidden: document.getElementById('sheet').hidden, text: document.getElementById('sheet').innerText, url: location.href})");
-  assert(!sheet.hidden && sheet.text.includes("이 리포트는 현재 준비 중이에요") && sheet.text.includes("팔자PLAY Beta"), "시트 문구");
+  assert(!sheet.hidden && sheet.text.includes("이 리포트는 현재 준비 중이에요") && sheet.text.includes("사주팔자PLAY Beta"), "시트 문구");
   assert(sheet.url === BASE + "/", "페이지 이동 없음");
   assert((await events()).includes("premium_money_click"), "click 이벤트");
   assert(!(await events()).includes("premium_money_interest"), "아직 관심 아님");
@@ -316,33 +317,40 @@ await check("Feedback 제출 → 감사 화면 + feedback_submit + localStorage(
 });
 await shot("11-feedback-done-mobile", "#feedback");
 
-await check("Share: Web Share 없으면 클립보드, 문구에 생년월일·시간 없음 + share_click", async () => {
+let battleLink = null;
+await check("친구와 배틀하기: 섹션 제목·닉네임 입력, 클립보드로 배틀 링크 공유 + share_click(mode=battle)", async () => {
+  const t = await visibleText();
+  assert(t.includes("친구와 배틀하기") && !t.includes("내 캐릭터 자랑하기"), "섹션 제목");
   await evaluate(`(() => {
     Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
     window.__copied = null;
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t) => { window.__copied = t; } }, configurable: true });
+    const n = document.getElementById('battle-nick'); n.value = '보헌'; n.dispatchEvent(new Event('input', {bubbles:true}));
     return true; })()`);
   await click("#share-btn");
   await sleep(300);
   const text = await evaluate("window.__copied");
-  assert(text && text.includes("독립형 승부사") && text.includes("너도 한번 해봐"), `공유 문구: ${text}`);
-  assert(!text.includes("1990") && !text.includes("14:20") && !text.includes("05-15"), "개인정보 미포함");
-  assert((await events()).includes("share_click"), "share_click");
+  assert(text && text.includes("사주팔자PLAY 배틀 신청") && text.includes("독립형 승부사") && text.includes("보헌"), `공유 문구: ${text}`);
+  battleLink = text.split("\n").pop();
+  assert(battleLink.startsWith(BASE + "/#b=b1~"), `링크: ${battleLink}`);
+  for (const bad of ["1990", "14:20", "05-15", "0515", "female"]) assert(!text.includes(bad), `개인정보 미포함: ${bad}`);
+  const ev = await evaluate("window.__PALJA_DEV__.events.filter(e => e.name === 'share_click').map(e => e.props)");
+  assert(ev.length && ev.at(-1).mode === "battle" && ev.at(-1).hasNickname === true, JSON.stringify(ev));
 });
-await check("Share: Web Share API 있으면 그것을 사용", async () => {
+await check("배틀 공유: Web Share API 있으면 제목·문구·링크로 공유", async () => {
   await evaluate("window.__shared = null; Object.defineProperty(navigator, 'share', { value: async (d) => { window.__shared = d; }, configurable: true }); true");
   await click("#share-btn");
   await sleep(200);
   const d = await evaluate("window.__shared");
-  assert(d && d.text.includes("독립형 승부사"), "navigator.share 호출");
+  assert(d && d.title === "사주팔자PLAY 배틀" && d.text.includes("독립형 승부사") && d.url.includes("#b=b1~"), "navigator.share 호출");
 });
-await check("Share: 공유·복사 모두 실패하면 직접 복사용 문구 표시", async () => {
+await check("배틀 공유: 공유·복사 모두 실패하면 직접 복사용 문구 표시", async () => {
   await evaluate("Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }); true");
   await click("#share-btn");
   await sleep(200);
-  assert(await evaluate("!!document.querySelector('#share-fallback textarea')"), "fallback textarea");
+  assert(await evaluate("document.querySelector('#share-fallback textarea')?.value.includes('#b=b1~')"), "fallback textarea");
 });
-await shot("12-share-mobile", "#share");
+await shot("12-battle-send-mobile", "#battle");
 await check("결과 하단 Beta 안내 + 콘솔/페이지 오류 없음", async () => {
   assert((await visibleText()).includes("엔터테인먼트 서비스입니다"), "안내");
   assert(pageErrors.length === 0, pageErrors.join(" | "));
@@ -405,6 +413,79 @@ await check("새로고침하면 처음 화면으로 (입력 정보 남지 않음
   assert(await evaluate("document.getElementById('s-landing').classList.contains('on')"), "랜딩");
   assert((await evaluate("document.getElementById('dt').value")) === "", "날짜 비어 있음");
 });
+
+console.log("\n[모바일] 친구와 배틀: 링크로 들어온 친구");
+await check("배틀 링크로 입장 → 초대 배너(상대 캐릭터, 점수는 숨김) + landing_view(via=battle)", async () => {
+  assert(battleLink, "앞 단계에서 만든 배틀 링크");
+  await cdp("Page.navigate", { url: battleLink });
+  await waitFor(() => evaluate("document.readyState === 'complete' && !!window.__PALJA_DEV__"));
+  await sleep(300);
+  const t = await visibleText();
+  assert(t.includes("배틀 신청이 도착했어요") && t.includes("보헌의 캐릭터: 독립형 승부사"), "초대 배너");
+  assert(t.includes("내 팔자로 도전하기"), "CTA 문구");
+  const lv = await evaluate("window.__PALJA_DEV__.events.find(e => e.name === 'landing_view').props.via");
+  assert(lv === "battle", lv);
+  await noOverflow();
+});
+await shot("21-battle-invite-mobile");
+await check("친구가 자기 팔자 입력 → 결과 상단에 배틀 결과(VS, 7라운드, 승패, 총점) + result_view.battleOutcome", async () => {
+  await click("#go");
+  await fill({ date: "1988-08-08", time: "08:08", gender: "male" });
+  await submitAndWaitResult();
+  const box = await evaluate("document.getElementById('battle-result')?.innerText ?? ''");
+  assert(box.includes("보헌과의 배틀") && /승리|패배|무승부/.test(box), box.slice(0, 80));
+  assert((await evaluate("document.querySelectorAll('#battle-result .round').length")) === 7, "7라운드");
+  assert(box.includes("기본 운 밸런스") && box.includes("총점"), "라운드 이름/총점");
+  const order = await evaluate("[...document.querySelector('.result').children].map(e => e.id || e.className).slice(0, 4).join(',')");
+  assert(order.startsWith("char-card") || order.includes("char-card,battle-result") || order.split(",")[1] === "char-card", order);
+  const outcome = await evaluate("window.__PALJA_DEV__.events.find(e => e.name === 'result_view').props.battleOutcome");
+  assert(["win", "lose", "draw"].includes(outcome), String(outcome));
+  await noDevTerms();
+  await noOverflow();
+});
+await shot("22-battle-result-mobile", "#battle-result");
+await check("리매치: 친구도 배틀 섹션에서 다시 도전장 보내기 (share_click.rematch=true)", async () => {
+  await evaluate(`(() => { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
+    window.__copied = null; Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t) => { window.__copied = t; } }, configurable: true }); return true; })()`);
+  await click("#share-btn");
+  await sleep(300);
+  assert((await evaluate("window.__copied")).includes("#b=b1~"), "리매치 링크");
+  const last = await evaluate("window.__PALJA_DEV__.events.filter(e => e.name === 'share_click').at(-1).props");
+  assert(last.rematch === true, JSON.stringify(last));
+});
+await check("조작·손상된 배틀 링크 → 배틀 없이 평소 랜딩 + 안내", async () => {
+  await cdp("Page.navigate", { url: BASE + "/#b=b1~hacker~999_1_1_1_1_1_1" });
+  await waitFor(() => evaluate("document.readyState === 'complete' && !!window.__PALJA_DEV__"));
+  await sleep(600);
+  const t = await visibleText();
+  assert(!t.includes("배틀 신청이 도착했어요") && t.includes("내 팔자 보기"), "평소 랜딩");
+  assert(t.includes("배틀 링크를 읽지 못했어요"), "안내 토스트");
+  const via = await evaluate("window.__PALJA_DEV__.events.find(e => e.name === 'landing_view').props.via");
+  assert(via === "battle-invalid", via);
+});
+
+console.log("\n[작은 폰 320x640]");
+await viewport("small");
+await check("320px: 랜딩·입력·결과·배틀 결과 모두 가로 넘침 없음", async () => {
+  await open("/");
+  await noOverflow();
+  await click("#go");
+  await noOverflow();
+  await fill({ date: "1977-07-07", time: "19:30", gender: "female" });
+  await submitAndWaitResult();
+  await noOverflow();
+  assert(battleLink, "배틀 링크");
+  await cdp("Page.navigate", { url: "about:blank" });
+  await cdp("Page.navigate", { url: battleLink });
+  await waitFor(() => evaluate("document.readyState === 'complete' && !!window.__PALJA_DEV__"));
+  await noOverflow();
+  await click("#go");
+  await fill({ date: "2001-01-01", unknown: true, gender: "male" });
+  await submitAndWaitResult();
+  assert(await evaluate("!!document.getElementById('battle-result')"), "배틀 결과");
+  await noOverflow();
+});
+await shot("23-battle-result-320", "#battle-result");
 
 console.log("\n[데스크톱 1280x900]");
 await viewport("desktop");

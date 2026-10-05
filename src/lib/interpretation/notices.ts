@@ -10,7 +10,7 @@ export const NOTICE_TEXT: Readonly<Record<NoticeCode, string>> = Object.freeze({
 });
 
 export const BETA_DISCLAIMER =
-  "팔자PLAY는 전통 명리 요소를 기반으로 만든 엔터테인먼트 서비스입니다.\n" +
+  "사주팔자PLAY는 전통 명리 요소를 기반으로 만든 엔터테인먼트 서비스입니다.\n" +
   "현재 Beta 기간 동안 계산 및 해석 시스템을 지속적으로 검증하고 개선하고 있습니다.";
 
-export const SCORE_DISCLAIMER = "능력치는 사주 데이터를 재미있게 시각화한 팔자PLAY 서비스 지표예요. 전통 사주의 절대적인 측정값이 아닙니다.";
+export const SCORE_DISCLAIMER = "능력치는 사주 데이터를 재미있게 시각화한 사주팔자PLAY 서비스 지표예요. 전통 사주의 절대적인 측정값이 아닙니다.";

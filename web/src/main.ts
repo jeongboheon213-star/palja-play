@@ -1,10 +1,21 @@
-// 팔자PLAY Beta 화면. 계산은 전부 엔진(computeBetaResult)이 하고, 여기서는 보여주기만 한다.
+// 사주팔자PLAY Beta 화면. 계산은 전부 엔진(computeBetaResult)이 하고, 여기서는 보여주기만 한다.
 // 화면에 쓰는 사주 결과는 전부 엔진 결과다 (가짜 데이터 없음). 사주 계산에 난수를 쓰지 않는다 (UUID 는 레코드 구분용, runtime.ts 참고).
 
 import { computeBetaResult, type BetaResult } from "../../src/lib/engine";
 import { validateSajuInput } from "../../src/lib/validation";
 import { toResultView, RESULT_ERROR_TEXT, type ResultView } from "../../src/lib/ui/resultView";
-import { buildShareText } from "../../src/lib/share/share";
+import {
+  battleCardFrom,
+  battleFromHash,
+  battleUrl,
+  buildBattleShareText,
+  characterById,
+  compareBattle,
+  sanitizeNickname,
+  withJosa,
+  NICKNAME_MAX,
+  type BattleCard,
+} from "../../src/lib/battle/battle";
 import { buildFeedbackRecord, FEEDBACK_AREAS, FEEDBACK_AREA_LABELS, type FeedbackArea, type FeedbackDraft, type ShareIntent } from "../../src/lib/feedback/feedback";
 import type { EventName } from "../../src/lib/analytics/events";
 import type { OverlapChoice } from "../../src/lib/saju/providers";
@@ -56,7 +67,31 @@ let inputStarted = false;
 
 // ── 랜딩 ──────────────────────────────────────────────────
 if (APP_CONFIG.isDev) $("#devflag").hidden = false;
-rt.track("landing_view");
+
+// 배틀 링크(#b=…)로 들어왔는가. 잘못된 링크면 배틀 없이 평소처럼 진행한다.
+const hadBattleHash = /^#b=/.test(location.hash);
+const challenger: BattleCard | null = battleFromHash(location.hash);
+rt.track("landing_view", { via: challenger ? "battle" : hadBattleHash ? "battle-invalid" : "direct" });
+if (challenger) renderBattleInvite(challenger);
+else if (hadBattleHash) window.setTimeout(() => toast("배틀 링크를 읽지 못했어요. 내 팔자부터 확인해 보세요!"), 300);
+// 이미 열린 탭에 배틀 링크를 붙여 넣으면 주소의 # 부분만 바뀌고 페이지는 다시 시작되지 않는다 → 새로 시작
+window.addEventListener("hashchange", () => {
+  if (/^#b=/.test(location.hash)) location.reload();
+});
+
+function renderBattleInvite(c: BattleCard): void {
+  const ch = characterById(c.characterId)!;
+  const who = c.nickname ?? "친구";
+  const box = h(
+    "div",
+    { class: "invite", id: "battle-invite" },
+    h("p", { class: "invite-tag" }, "⚔️ 배틀 신청이 도착했어요"),
+    h("div", { class: "invite-row" }, h("span", { class: "em", "aria-hidden": "true" }, ch.emoji), h("div", {}, h("b", {}, `${who}의 캐릭터: ${ch.name}`), h("p", { class: "mute small", style: "margin:2px 0 0" }, "능력치는 대결에서 공개돼요. 내 팔자로 이겨 보세요!"))),
+  );
+  const landing = $("#s-landing");
+  landing.insertBefore(box, landing.firstChild);
+  $("#go").textContent = "내 팔자로 도전하기";
+}
 $("#go").addEventListener("click", () => {
   show("s-input");
   ($("#dt") as HTMLInputElement).focus({ preventScroll: true });
@@ -133,7 +168,8 @@ function run(overlapChoice?: OverlapChoice): void {
   playLoading(() => {
     renderResult(current!);
     show("s-result");
-    rt.track("result_view", { characterId: r.free.character.id }, resultId);
+    const battleOutcome = challenger ? compareBattle(battleCardFrom(r.free, null), challenger).outcome : null;
+    rt.track("result_view", { characterId: r.free.character.id, battleOutcome }, resultId);
   });
 }
 
@@ -183,6 +219,7 @@ function renderResult(c: Current): void {
       h("p", { class: "tl" }, v.character.tagline),
       h("span", { class: "el" }, v.character.elementLabel),
     ),
+    challenger ? renderBattleResult(c, challenger) : null,
     h("p", { class: "hint" }, "나와 얼마나 비슷한지 내려가면서 확인해보세요 👇"),
     v.notices.map((n) => h("div", { class: "notice" }, n)),
 
@@ -240,7 +277,7 @@ function renderResult(c: Current): void {
 
     renderPremium(c),
     renderFeedback(c),
-    renderShare(c),
+    renderBattle(c),
 
     h("p", { class: "note" }, v.disclaimer),
     h("button", { class: "btn ghost", type: "button", id: "again", onclick: () => show("s-input") }, "다시 해보기"),
@@ -486,59 +523,106 @@ function renderFeedback(c: Current): HTMLElement {
       c.resultId,
     );
     box.replaceChildren(
-      h("div", { class: "done" }, h("div", { style: "font-size:44px" }, "🙏"), h("h2", { style: "margin:6px 0" }, "고마워요!"), h("p", { class: "mute" }, "남겨준 의견으로 팔자PLAY를 더 잘 맞게 다듬을게요.")),
+      h("div", { class: "done" }, h("div", { style: "font-size:44px" }, "🙏"), h("h2", { style: "margin:6px 0" }, "고마워요!"), h("p", { class: "mute" }, "남겨준 의견으로 사주팔자PLAY를 더 잘 맞게 다듬을게요.")),
     );
   });
   return box;
 }
 
-// ── Share ─────────────────────────────────────────────────
-function renderShare(c: Current): HTMLElement {
-  const s = c.view.share;
+// ── 친구와 배틀 ───────────────────────────────────────────
+/** 배틀 링크로 들어온 경우: 결과 상단에 대결 결과 */
+function renderBattleResult(c: Current, friend: BattleCard): HTMLElement {
+  const me = battleCardFrom(c.result.free, null);
+  const res = compareBattle(me, friend);
+  const fch = characterById(friend.characterId)!;
+  const fname = friend.nickname ?? "친구";
+  const side = (emoji: string, name: string, who: string, cls: string) =>
+    h("div", { class: `vs-side ${cls}` }, h("div", { class: "em", "aria-hidden": "true" }, emoji), h("b", {}, name), h("span", {}, who));
+  return h(
+    "section",
+    { class: `battle-result ${res.outcome}`, id: "battle-result", "aria-label": "배틀 결과" },
+    h("p", { class: "invite-tag", style: "text-align:center" }, `⚔️ ${withJosa(fname, "와/과")}의 배틀`),
+    h(
+      "div",
+      { class: "vs" },
+      side(c.view.character.emoji, c.view.character.name, "나", "me"),
+      h("div", { class: "vs-mid" }, h("b", {}, `${res.myWins} : ${res.friendWins}`), h("span", {}, "VS")),
+      side(fch.emoji, fch.name, fname, "friend"),
+    ),
+    h("h2", { class: "battle-headline" }, res.headline),
+    h("p", { style: "text-align:center" }, res.comment),
+    h(
+      "div",
+      { class: "rounds" },
+      res.rounds.map((r) =>
+        h(
+          "div",
+          { class: `round ${r.winner}`, "aria-label": `${r.label} 나 ${r.me} 대 ${fname} ${r.friend}` },
+          h("span", { class: "rv me" }, String(r.me)),
+          h("span", { class: "rl" }, r.winner === "me" ? `◀ ${r.label}` : r.winner === "friend" ? `${r.label} ▶` : `${r.label} =`),
+          h("span", { class: "rv friend" }, String(r.friend)),
+        ),
+      ),
+    ),
+    h("p", { class: "mute small", style: "text-align:center;margin-top:8px" }, `총점 ${res.myTotal} vs ${res.friendTotal} · 재미로 보는 대결이에요. 능력치는 서비스 지표예요.`),
+    h("button", { class: "btn", type: "button", onclick: () => document.getElementById("battle")?.scrollIntoView({ behavior: "smooth" }) }, res.outcome === "lose" ? "리매치 신청하러 가기" : "다른 친구에게도 도전장 보내기"),
+  );
+}
+
+/** 결과 맨 마지막: 친구와 배틀하기 (배틀 신청 링크 공유) */
+function renderBattle(c: Current): HTMLElement {
+  const v = c.view;
+  const nick = h("input", { id: "battle-nick", type: "text", maxlength: String(NICKNAME_MAX), placeholder: "예: 보헌 (선택)", autocomplete: "off" }) as HTMLInputElement;
+  const total = c.result.free.scores.reduce((a, s) => a + s.value, 0);
   const card = h(
     "div",
     { class: "share-card", id: "share-card" },
-    h("div", { class: "brand" }, "팔자PLAY"),
-    h("div", { class: "em", "aria-hidden": "true" }, s.emoji),
-    h("h3", { class: "d" }, s.characterName),
-    h("div", { class: "tl" }, s.tagline),
-    h("div", { class: "top3" }, s.topStats.map((t) => h("span", {}, `${t.label} `, h("b", {}, String(t.value))))),
+    h("div", { class: "brand" }, "사주팔자PLAY · BATTLE"),
+    h("div", { class: "em", "aria-hidden": "true" }, v.character.emoji),
+    h("h3", { class: "d" }, v.character.name),
+    h("div", { class: "tl" }, v.character.tagline),
+    h("div", { class: "top3" }, h("span", {}, "능력치 총점 ", h("b", {}, "???")), h("span", {}, "7라운드 대결")),
   );
   const fallback = h("div", { id: "share-fallback" });
-  const btn = h("button", { class: "btn jade", type: "button", id: "share-btn" }, "친구에게 공유하기");
+  const btn = h("button", { class: "btn jade", type: "button", id: "share-btn" }, "⚔️ 배틀 신청 보내기");
   btn.addEventListener("click", async () => {
-    const text = buildShareText(c.result.free, { publicUrl: APP_CONFIG.publicUrl });
+    const myCard = battleCardFrom(c.result.free, sanitizeNickname(nick.value));
+    const url = battleUrl(APP_CONFIG.publicUrl ?? `${location.origin}${location.pathname}`, myCard);
+    const text = buildBattleShareText(myCard);
     let method = "none";
     try {
       if (typeof navigator.share === "function") {
         method = "web-share";
-        await navigator.share(APP_CONFIG.publicUrl ? { title: "팔자PLAY", text, url: APP_CONFIG.publicUrl } : { title: "팔자PLAY", text });
+        await navigator.share({ title: "사주팔자PLAY 배틀", text, url });
       } else if (navigator.clipboard?.writeText) {
         method = "clipboard";
-        await navigator.clipboard.writeText(text);
-        toast("공유 문구를 복사했어요. 친구에게 붙여넣어 보내 보세요!");
+        await navigator.clipboard.writeText(`${text}\n${url}`);
+        toast("배틀 링크를 복사했어요. 친구에게 붙여넣어 보내 보세요!");
       } else {
         throw new Error("no share");
       }
     } catch (err) {
       if ((err as { name?: string })?.name === "AbortError") return; // 사용자가 공유 창을 닫음
       method = "manual";
-      const ta = h("textarea", { class: "share-fallback", readonly: true, "aria-label": "공유 문구" }) as HTMLTextAreaElement;
-      ta.value = text;
+      const ta = h("textarea", { class: "share-fallback", readonly: true, "aria-label": "배틀 신청 문구" }) as HTMLTextAreaElement;
+      ta.value = `${text}\n${url}`;
       fallback.replaceChildren(h("p", { class: "mute small", style: "margin-top:10px" }, "아래 문구를 길게 눌러 복사해 주세요."), ta);
       ta.select();
     } finally {
-      rt.track("share_click", { method }, c.resultId);
+      rt.track("share_click", { mode: "battle", method, hasNickname: myCard.nickname !== null, rematch: challenger !== null }, c.resultId);
     }
   });
   return h(
     "section",
-    { id: "share", "aria-label": "공유" },
-    h("h2", {}, "내 캐릭터 자랑하기"),
+    { id: "battle", "aria-label": "친구와 배틀하기" },
+    h("h2", {}, "친구와 배틀하기"),
+    h("p", { class: "mute" }, `친구가 링크를 열고 자기 팔자를 넣으면, 7개 능력치로 라운드 대결이 펼쳐져요. 내 총점은 ${total}점! 친구는 대결 전까지 몰라요.`),
     card,
+    h("label", { for: "battle-nick" }, "배틀에서 보일 이름 (선택, 최대 10자)"),
+    nick,
     btn,
     fallback,
-    h("p", { class: "mute small", style: "margin-top:8px" }, "공유 문구에는 생년월일이나 출생 시간이 들어가지 않아요."),
+    h("p", { class: "mute small", style: "margin-top:8px" }, "링크에는 캐릭터와 능력치 점수만 담겨요. 생년월일·출생 시간은 들어가지 않아요."),
   );
 }
 

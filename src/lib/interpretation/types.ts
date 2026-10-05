@@ -52,7 +52,7 @@ export const STAT_LABELS: Readonly<Record<StatKey, string>> = Object.freeze({
 export interface Score {
   readonly stat: StatKey;
   readonly label: string;
-  /** 0~100. 전통 사주의 절대 측정값이 아니라 팔자PLAY 서비스용 해석 지표 */
+  /** 0~100. 전통 사주의 절대 측정값이 아니라 사주팔자PLAY 서비스용 해석 지표 */
   readonly value: number;
   /** 이 점수를 만든 Signal id. 비어 있으면 안 된다. */
   readonly signalIds: readonly string[];

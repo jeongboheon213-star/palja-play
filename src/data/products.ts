@@ -30,7 +30,7 @@ export interface Product {
 }
 
 /** 결제 대신 보여줄 문구 */
-export const PREMIUM_COMING_SOON_MESSAGE = "팔자PLAY Beta에서 준비 중인 기능입니다.";
+export const PREMIUM_COMING_SOON_MESSAGE = "사주팔자PLAY Beta에서 준비 중인 기능입니다.";
 
 export const PRODUCTS: Readonly<Record<ProductId, Product>> = Object.freeze({
   free_result: Object.freeze({

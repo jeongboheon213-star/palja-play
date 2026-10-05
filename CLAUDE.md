@@ -40,7 +40,10 @@ Validation → CalendarProvider → TimeNormalizer → SolarTermProvider → Saj
 - Phase 8 완료: 이벤트 12종 `track()` 추상화, 피드백 레코드(개인정보 없음, resultId UUID + 버전) + `FeedbackRepository`. dev = localStorage(개발 표시), production = 미설정(저장한 척 금지). 외부 분석/저장소 미연결.
 - E2E: `npm run e2e` (Edge headless + CDP, 추가 패키지 없음), 캡처 `docs/screenshots/`.
 
-## 다음: Phase 9 QA (승인 대기) → Production 배포 직전 멈춤
+- 이름: 사주팔자PLAY. 결과 끝은 "친구와 배틀하기"(`src/lib/battle`).
+- Phase 9 QA 완료(`docs/QA_REPORT.md`). Vercel main 자동 배포 꺼짐, Supabase 연결됨(SUPABASE_* 자동 사용).
+
+## 다음: Production 배포 (사용자 승인 대기)
 Production 전 필수: 실제 피드백 저장소·분석 저장처 결정/연결, 배포처 결정, 공개 URL(`PALJA_PUBLIC_URL`), Safari 실기 확인.
 
 ## 명령

@@ -198,3 +198,9 @@
 - 사용자 결정(1번): 빌드가 PALJA_* 가 없으면 SUPABASE_URL / SUPABASE_ANON_KEY (및 NEXT_PUBLIC_* , SUPABASE_PUBLISHABLE_KEY) 를 읽도록 변경. 사용자가 Vercel 에 따로 입력할 필요 없음.
 - 안전장치 강화: 키가 sb_publishable_ 이거나 JWT role=anon 일 때만 허용(service_role JWT, sb_secret_ → 빌드 중단), URL 은 https://xxxx.supabase.co 형식만. POSTGRES_* / SUPABASE_JWT_SECRET 은 읽지 않으며 번들에 들어가지 않음을 확인.
 - 빌드 로그에 연결 대상 호스트와 사용한 변수 이름 표시.
+
+## 2026-10-05 — 이름 변경 + 친구와 배틀 + Phase 9 QA
+
+- 서비스 이름 팔자PLAY → 사주팔자PLAY (화면·공유·안내문·테스트).
+- "내 캐릭터 자랑하기" → "친구와 배틀하기": `src/lib/battle/battle.ts` (링크 인코딩/검증, 라운드 대결, 조사 처리, 공유 문구), 화면(초대 배너, VS 결과, 리매치). 링크에 개인정보 없음. 이벤트는 기존 이름 + 속성(DB 변경 없음).
+- QA 결과는 `docs/QA_REPORT.md`. 단위 189/189, E2E 33/33(320px 작은 폰 추가), 캡처 23장.
