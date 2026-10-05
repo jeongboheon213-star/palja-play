@@ -51,7 +51,7 @@ test("PRODUCTS", () => {
   assert.deepEqual([...PRODUCTS.free_result.axes], ["what"]);
   for (const id of ["premium_money", "premium_love", "premium_career"] as const) {
     const p = PRODUCTS[id];
-    assert.equal(p.priceKrw, 4900, id);
+    assert.equal(p.priceKrw, 2900, id); // 2026-10-05 사용자 요청: 4,900 → 2,900
     assert.equal(p.betaTestPrice, true, id);
     assert.equal(p.paymentEnabled, false, id);
     assert.deepEqual([...p.axes], ["why", "how", "when"], id);

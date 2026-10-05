@@ -108,6 +108,22 @@ export function battleFromHash(hash: string): BattleCard | null {
   return decodeBattle(v);
 }
 
+// ── 문자로 보내기 (전화번호는 저장·전송하지 않는다) ─────────────────
+//
+// 전화번호는 휴대폰의 문자 앱을 여는 sms: 링크에만 쓰인다.
+// 우리 서버·Supabase·분석 이벤트·브라우저 저장소로 보내지 않는다 (테스트로 강제).
+
+/** 한국 휴대폰 번호 → 숫자만 (010xxxxxxxx). 아니면 null */
+export function normalizeKoreanMobile(raw: string): string | null {
+  const digits = raw.replace(/[\s().-]/g, "").replace(/^\+82/, "0");
+  return /^01[016789]\d{7,8}$/.test(digits) ? digits : null;
+}
+
+/** 문자 앱 열기 링크. iOS 는 "&body=", 그 외(Android 등)는 "?body=" */
+export function buildSmsUri(phoneDigits: string, body: string, platform: "ios" | "other"): string {
+  return `sms:${phoneDigits}${platform === "ios" ? "&" : "?"}body=${encodeURIComponent(body)}`;
+}
+
 // ── 조사 (을/를, 와/과) ─────────────────────────────────────────
 
 /** 마지막 글자에 받침이 있는가. 한글이 아니면 null (조사를 "(을)를" 식으로 둘 다 표기) */

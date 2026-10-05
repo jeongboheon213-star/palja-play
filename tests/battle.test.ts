@@ -133,3 +133,32 @@ test("배틀 신청 문구: 브랜드·캐릭터 포함, 점수·개인정보 �
   for (const s of c.scores) assert.ok(!new RegExp(`\\b${s}\\b`).test(t), `점수 ${s} 숨김`);
   assert.ok(!/1990|14:20|female/.test(t));
 });
+
+test("전화번호: 한국 휴대폰 번호만 허용, 숫자만 남김", async () => {
+  const { normalizeKoreanMobile } = await import("../src/lib/battle/battle");
+  assert.equal(normalizeKoreanMobile("010-1234-5678"), "01012345678");
+  assert.equal(normalizeKoreanMobile("010 1234 5678"), "01012345678");
+  assert.equal(normalizeKoreanMobile("+82 10-1234-5678"), "01012345678");
+  assert.equal(normalizeKoreanMobile("011-123-4567"), "0111234567");
+  for (const bad of ["", "12345", "02-123-4567", "010-1234-567a", "010-12345-67890"]) assert.equal(normalizeKoreanMobile(bad), null, bad);
+});
+
+test("문자 링크: 휴대폰 문자 앱용 sms: (iOS &body, 그 외 ?body), 우리 서버 주소가 아님", async () => {
+  const { buildSmsUri } = await import("../src/lib/battle/battle");
+  assert.equal(buildSmsUri("01012345678", "안녕 https://x.test/#b=1", "other"), "sms:01012345678?body=%EC%95%88%EB%85%95%20https%3A%2F%2Fx.test%2F%23b%3D1");
+  assert.ok(buildSmsUri("01012345678", "a", "ios").startsWith("sms:01012345678&body="));
+});
+
+test("개인정보: 전화번호는 저장·전송 코드에 쓰이지 않는다 (화면 코드 정적 검사)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const main = readFileSync(`${process.cwd()}/web/src/main.ts`, "utf8");
+  const uses = main.split("\n").filter((l) => /phone\.value|digits/.test(l));
+  for (const l of uses) {
+    assert.ok(!/localStorage|sessionStorage|fetch|track\(|submit\(|indexedDB|cookie/.test(l), `전화번호가 저장/전송 코드에 사용됨: ${l.trim()}`);
+  }
+  assert.ok(uses.some((l) => /phone\.value = ""/.test(l)), "보낸 뒤 입력칸을 지운다");
+  assert.ok(/autocomplete: "off"/.test(main.split("\n").find((l) => l.includes('id: "battle-phone"')) ?? ""), "자동완성 저장 끔");
+  for (const f of ["src/lib/analytics/events.ts", "src/lib/feedback/feedback.ts", "src/lib/storage/supabaseRows.ts"]) {
+    assert.ok(!/phone/i.test(readFileSync(`${process.cwd()}/${f}`, "utf8").replace(/.*phone.*\/\/.*|\.\*phone\.\*/g, "")), `${f} 에 전화번호 필드 없음`);
+  }
+});

@@ -80,6 +80,8 @@ ws.onmessage = (m) => {
     const { res, rej } = pending.get(msg.id);
     pending.delete(msg.id);
     msg.error ? rej(new Error(msg.error.message)) : res(msg.result);
+  } else if (msg.method === "Network.requestWillBeSent") {
+    netLog.push(`${msg.params.request.method} ${msg.params.request.url} ${msg.params.request.postData ?? ""}`);
   } else if (msg.method === "Runtime.exceptionThrown") {
     pageErrors.push(msg.params.exceptionDetails.exception?.description ?? msg.params.exceptionDetails.text);
   } else if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
@@ -94,6 +96,8 @@ const cdp = (method, params = {}) =>
   });
 await cdp("Page.enable");
 await cdp("Runtime.enable");
+await cdp("Network.enable");
+const netLog = [];
 
 async function evaluate(expr) {
   const r = await cdp("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true });
@@ -258,10 +262,10 @@ await check("FREE 해석: 강점·주의점·오행·5개 영역·키워드", as
 });
 await shot("07-free-interpretation-mobile", ".blk");
 
-await check("Premium: 3개 카드 4,900원 + WHY 미리보기 + 시기 준비 중", async () => {
+await check("Premium: 3개 카드 2,900원 + WHY 미리보기 + 시기 준비 중", async () => {
   const cards = await evaluate("[...document.querySelectorAll('.prod')].map(p => p.innerText)");
   assert(cards.length === 3, `cards ${cards.length}`);
-  for (const c of cards) assert(c.includes("4,900원") && c.includes("Beta 테스트 가격") && c.includes("준비 중"), c.slice(0, 40));
+  for (const c of cards) assert(c.includes("2,900원") && c.includes("Beta 테스트 가격") && c.includes("준비 중"), c.slice(0, 40));
   const t = await visibleText();
   assert(t.includes("여기까지가 무료 팔자풀이"), "intro");
 });
@@ -349,6 +353,23 @@ await check("배틀 공유: 공유·복사 모두 실패하면 직접 복사용 
   await click("#share-btn");
   await sleep(200);
   assert(await evaluate("document.querySelector('#share-fallback textarea')?.value.includes('#b=b1~')"), "fallback textarea");
+});
+await check("문자로 배틀 신청: 닉네임 안내·전화번호 안내 문구, 잘못된 번호 안내, 보낸 뒤 번호 지움, 이벤트에 번호 없음", async () => {
+  const t = await visibleText();
+  assert(t.includes("배틀 닉네임") && t.includes("실명 대신 별명을 추천해요."), "닉네임 안내");
+  assert(t.includes("전화번호는 저장되지 않으며 개인정보보호 처리됩니다."), "전화번호 안내");
+  await evaluate("document.getElementById('battle-phone').value = '02-123'; true");
+  await click("#sms-btn");
+  assert((await evaluate("document.getElementById('battle-err').textContent")).includes("휴대폰 번호"), "번호 오류 안내");
+  await evaluate("document.getElementById('battle-phone').value = '010-9876-5432'; true");
+  await click("#sms-btn");
+  await sleep(500);
+  assert((await evaluate("document.getElementById('battle-phone')?.value ?? ''")) === "", "보낸 뒤 번호 지움");
+  const ev = await evaluate("window.__PALJA_DEV__.events.filter(e => e.name === 'share_click').at(-1)");
+  assert(ev.props.method === "sms", JSON.stringify(ev.props));
+  assert(!JSON.stringify(ev).includes("9876") && !JSON.stringify(ev).includes("01098765432"), "이벤트에 번호 없음");
+  const stored = await evaluate("JSON.stringify(localStorage) + JSON.stringify(sessionStorage) + document.cookie");
+  assert(!stored.includes("9876"), "브라우저 저장소에 번호 없음");
 });
 await shot("12-battle-send-mobile", "#battle");
 await check("결과 하단 Beta 안내 + 콘솔/페이지 오류 없음", async () => {
@@ -516,6 +537,17 @@ await check("production 빌드(dist)에는 debug 화면·개발 hook 이 없다"
   assert(!existsSync("dist/debug.html") && !existsSync("dist/assets/debug.js"), "debug 파일");
   const js = readFileSync("dist/assets/app.js", "utf8");
   assert(!js.includes("__PALJA_DEV__") && !js.includes("Raw SajuData"), "개발 hook");
+});
+
+await check("네트워크: 생년월일·출생시간·성별·전화번호·기둥이 어떤 요청에도 실리지 않음", async () => {
+  const bad = ["1990-05-15", "19900515", "14:20", "1988-08-08", "08:08", "010-9876-5432", "01098765432", "9876-5432", "gender", "birthDate", "birthTime", "pillars", "rawInput", "female", "경오", "경진"];
+  // 인터넷(http/https) 요청만 검사한다. sms: 는 서버로 가지 않고 휴대폰 문자 앱으로 넘겨지는 링크다.
+  const web = netLog.filter((l) => /^\S+ https?:/.test(l));
+  assert(web.length > 5, `검사한 인터넷 요청 수가 너무 적음: ${web.length}`); // 헛통과 방지
+  const hits = web.filter((l) => bad.some((b) => l.includes(b)) && !l.startsWith("GET " + BASE));
+  assert(netLog.some((l) => l.includes(" sms:")), "문자 앱 열기(sms:) 확인");
+  assert(netLog.length > 0, "요청 기록");
+  assert(hits.length === 0, hits.slice(0, 3).join(" | "));
 });
 
 // ── 마무리 ──────────────────────────────────────────────────

@@ -17,11 +17,11 @@ const okResult = (d: string, t: string | null, g: "male" | "female" = "male") =>
   return r;
 };
 
-test("상품 설정: 재물/연애/직업·사업 리포트 4,900원, Beta 테스트 가격, 결제 비활성", () => {
+test("상품 설정: 재물/연애/직업·사업 리포트 2,900원, Beta 테스트 가격, 결제 비활성", () => {
   assert.deepEqual(PREMIUM_SPECS.map((p) => [p.name, p.priceLabel]), [
-    ["재물 심층 리포트", "4,900원"],
-    ["연애 심층 리포트", "4,900원"],
-    ["직업·사업 심층 리포트", "4,900원"],
+    ["재물 심층 리포트", "2,900원"],
+    ["연애 심층 리포트", "2,900원"],
+    ["직업·사업 심층 리포트", "2,900원"],
   ]);
   for (const p of PREMIUM_SPECS) {
     assert.equal(p.betaTestPrice, true);

@@ -13,6 +13,8 @@ import {
   compareBattle,
   sanitizeNickname,
   withJosa,
+  normalizeKoreanMobile,
+  buildSmsUri,
   NICKNAME_MAX,
   type BattleCard,
 } from "../../src/lib/battle/battle";
@@ -569,10 +571,13 @@ function renderBattleResult(c: Current, friend: BattleCard): HTMLElement {
   );
 }
 
-/** 결과 맨 마지막: 친구와 배틀하기 (배틀 신청 링크 공유) */
+/** 결과 맨 마지막: 친구와 배틀하기 (닉네임 + 받을 친구 전화번호 → 휴대폰 문자 앱으로 배틀 신청) */
 function renderBattle(c: Current): HTMLElement {
   const v = c.view;
-  const nick = h("input", { id: "battle-nick", type: "text", maxlength: String(NICKNAME_MAX), placeholder: "예: 보헌 (선택)", autocomplete: "off" }) as HTMLInputElement;
+  const nick = h("input", { id: "battle-nick", type: "text", maxlength: String(NICKNAME_MAX), placeholder: "예: 행운의고양이", autocomplete: "off" }) as HTMLInputElement;
+  // 전화번호: 문자 앱을 여는 데만 쓰고 저장·전송하지 않는다 (자동완성 저장도 끔)
+  const phone = h("input", { id: "battle-phone", type: "tel", inputmode: "numeric", maxlength: "13", placeholder: "010-1234-5678", autocomplete: "off", name: "battle-phone-no-save" }) as HTMLInputElement;
+  const err = h("p", { class: "err", id: "battle-err", role: "alert" });
   const total = c.result.free.scores.reduce((a, s) => a + s.value, 0);
   const card = h(
     "div",
@@ -584,11 +589,36 @@ function renderBattle(c: Current): HTMLElement {
     h("div", { class: "top3" }, h("span", {}, "능력치 총점 ", h("b", {}, "???")), h("span", {}, "7라운드 대결")),
   );
   const fallback = h("div", { id: "share-fallback" });
-  const btn = h("button", { class: "btn jade", type: "button", id: "share-btn" }, "⚔️ 배틀 신청 보내기");
-  btn.addEventListener("click", async () => {
+  const myLink = () => {
     const myCard = battleCardFrom(c.result.free, sanitizeNickname(nick.value));
-    const url = battleUrl(APP_CONFIG.publicUrl ?? `${location.origin}${location.pathname}`, myCard);
-    const text = buildBattleShareText(myCard);
+    return { myCard, url: battleUrl(APP_CONFIG.publicUrl ?? `${location.origin}${location.pathname}`, myCard), text: buildBattleShareText(myCard) };
+  };
+  const trackShare = (method: string, hasNickname: boolean) =>
+    rt.track("share_click", { mode: "battle", method, hasNickname, rematch: challenger !== null }, c.resultId);
+
+  // ① 문자로 보내기 (기본)
+  const smsBtn = h("button", { class: "btn jade", type: "button", id: "sms-btn" }, "⚔️ 문자로 배틀 신청 보내기");
+  smsBtn.addEventListener("click", () => {
+    err.textContent = "";
+    const digits = normalizeKoreanMobile(phone.value);
+    if (!digits) {
+      err.textContent = "친구의 휴대폰 번호를 확인해 주세요. (예: 010-1234-5678)";
+      return;
+    }
+    const { myCard, url, text } = myLink();
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const uri = buildSmsUri(digits, `${text}\n${url}`, isIos ? "ios" : "other");
+    phone.value = ""; // 보낸 직후 화면에서도 지운다
+    trackShare("sms", myCard.nickname !== null); // 전화번호는 이벤트에 넣지 않는다
+    toast("문자 앱을 열었어요. 전송 버튼만 누르면 배틀 신청 완료!");
+    window.location.href = uri;
+  });
+
+  // ② 다른 방법 (카카오톡 등 공유 / 링크 복사)
+  const otherBtn = h("button", { class: "btn ghost", type: "button", id: "share-btn" }, "다른 방법으로 보내기 (카톡·링크 복사)");
+  otherBtn.addEventListener("click", async () => {
+    err.textContent = "";
+    const { myCard, url, text } = myLink();
     let method = "none";
     try {
       if (typeof navigator.share === "function") {
@@ -601,28 +631,35 @@ function renderBattle(c: Current): HTMLElement {
       } else {
         throw new Error("no share");
       }
-    } catch (err) {
-      if ((err as { name?: string })?.name === "AbortError") return; // 사용자가 공유 창을 닫음
+    } catch (e) {
+      if ((e as { name?: string })?.name === "AbortError") return; // 사용자가 공유 창을 닫음
       method = "manual";
       const ta = h("textarea", { class: "share-fallback", readonly: true, "aria-label": "배틀 신청 문구" }) as HTMLTextAreaElement;
       ta.value = `${text}\n${url}`;
       fallback.replaceChildren(h("p", { class: "mute small", style: "margin-top:10px" }, "아래 문구를 길게 눌러 복사해 주세요."), ta);
       ta.select();
     } finally {
-      rt.track("share_click", { mode: "battle", method, hasNickname: myCard.nickname !== null, rematch: challenger !== null }, c.resultId);
+      trackShare(method, myCard.nickname !== null);
     }
   });
+
   return h(
     "section",
     { id: "battle", "aria-label": "친구와 배틀하기" },
     h("h2", {}, "친구와 배틀하기"),
     h("p", { class: "mute" }, `친구가 링크를 열고 자기 팔자를 넣으면, 7개 능력치로 라운드 대결이 펼쳐져요. 내 총점은 ${total}점! 친구는 대결 전까지 몰라요.`),
     card,
-    h("label", { for: "battle-nick" }, "배틀에서 보일 이름 (선택, 최대 10자)"),
+    h("label", { for: "battle-nick" }, "배틀 닉네임"),
     nick,
-    btn,
+    h("p", { class: "mute small", style: "margin:6px 0 0" }, "실명 대신 별명을 추천해요."),
+    h("label", { for: "battle-phone" }, "받을 친구 전화번호"),
+    phone,
+    h("p", { class: "mute small", style: "margin:6px 0 0" }, "🔒 전화번호는 저장되지 않으며 개인정보보호 처리됩니다."),
+    err,
+    smsBtn,
+    otherBtn,
     fallback,
-    h("p", { class: "mute small", style: "margin-top:8px" }, "링크에는 캐릭터와 능력치 점수만 담겨요. 생년월일·출생 시간은 들어가지 않아요."),
+    h("p", { class: "mute small", style: "margin-top:8px" }, "링크에는 캐릭터와 능력치 점수만 담겨요. 생년월일·출생 시간은 들어가지 않아요. 재미로 보는 대결이며 상품·보상과는 관계없어요."),
   );
 }
 
