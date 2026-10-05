@@ -283,3 +283,13 @@
 - 단위 `tests/battle-share.test.ts` 8개: 문자·카카오·Web Share·복사·QR(실제 QR 을 그려 `jsqr@1.4.0`(devDependency) 로 디코드) 목적지 = canonical, 메신저식 링크 인식에 안 잘림(예전 형식은 잘림 재현), 모든 길이 잘림·변조·버전·체크섬 → invalid(예외 없음), 개인정보 없음, 기준 주소 정리, 화면 코드가 주소를 직접 조립하지 않음 → 단위 229/229.
 - E2E: 기존 35/35 (모바일은 Android UA 로 인식), 새 `scripts/e2e-battle.mjs` 34/34 — 320·390(모바일)·1280×720·1920×1080(PC) × 문자·복사·Web Share·카카오(SDK 전달값)·QR(SVG 디코드) 각각 링크 → **새 브라우저 컨텍스트** → 초대 → 친구 계산 → VS 7라운드.
 - 테스트 도구 수정: 브라우저 자식 프로세스가 남아 다음 실행을 막던 문제(프로세스 트리 + 프로필 경로로 종료), 피드백 개인정보 검사가 무작위 UUID 속 "1990" 에 우연히 걸리던 문제(id·시각은 형식만 검사, 나머지 값은 그대로 검사).
+
+### Production 확인 (73eddbf 배포 후, https://palja-play.vercel.app)
+- `node scripts/e2e-battle.mjs https://palja-play.vercel.app` → 26/26 (Edge 154). 390·320(모바일): 복사·공유시트·문자, 1280·1920(PC): 복사·공유시트·QR → 모두 같은 `?b=` 링크 → 새 브라우저 컨텍스트에서 초대 → 친구 계산 → VS 7라운드. 카카오는 Production 에 키가 없어 버튼 숨김 → 제외(NOT CONFIGURED).
+- `node scripts/prod-qa.mjs` → 11/11 (새 배틀 UI 에 맞게 스크립트 수정: 모바일 UA, copy-btn, `?b=` 링크, 새 초대 문구, 개발 배지 "없음" 확인 — 기준은 낮추지 않음).
+- 직접 확인: `/?b=AAAAbroken123` → "배틀 링크가 올바르지 않아요" 안내, 초대 없음. 예전 `#b=b1~…` 링크 → 초대 표시. `/debug.html` 404. 번들에 "개발 환경" 0건.
+- NOT TESTED: Chrome(미설치, Edge 만), 카카오톡 앱 실제 전송, iPhone Safari, 실제 문자 앱 전송.
+
+### Phase 15 orders 테이블 (공개 키로 확인)
+- `/rest/v1/orders` 존재함 (SQL 실행됨). 공개(anon) 키로 SELECT·INSERT·UPDATE·DELETE 모두 `42501 permission denied` → 브라우저에서 주문 접근 불가 확인.
+- RLS 켜짐 여부·service_role 권한·authenticated 권한은 공개 키로 확인 불가 → 사용자가 SQL Editor 에서 읽기 전용 조회 실행 필요.
