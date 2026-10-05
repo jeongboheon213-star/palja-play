@@ -181,3 +181,13 @@
 - 빌드 안전장치: service_role/secret 키가 들어오면 빌드 중단 (확인함).
 - `.gitattributes` 로 줄바꿈을 LF 로 고정 (Windows 에서 stash 후 CRLF 로 바뀌어 편집이 깨지는 문제). `docs/BETA_DIRECTION.md` 는 줄바꿈만 LF 로 정규화(내용 동일).
 - 테스트 +4 (행 ↔ SQL 컬럼 일치, 이벤트 이름 ↔ SQL CHECK 일치, RLS/권한, REST 요청) → 180 통과. E2E 28/28 통과.
+
+## 2026-10-05 — Supabase 실제 연결 확인
+
+- 사용자 안내로 Supabase SQL Editor 에서 migrations SQL 실행 → "Success. No rows returned".
+- 프로젝트: `nqplgqhpkdnmubfycdbs` (리전 ap-south-1, Free). 새 형식 publishable 키(`sb_publishable_…`) 사용. secret 키는 받지 않음.
+- 로컬 `.env.local`(git 제외)에 URL/publishable 키 저장. 새 키는 JWT 가 아니므로 REST 요청은 `apikey` 헤더만 보냄(예전 JWT anon 키일 때만 Bearer 추가).
+- 직접 확인: INSERT 201 / anon 으로 SELECT → 권한 거부 / 잘못된 이벤트 이름 → 400.
+- 실제 앱(개발 서버)에서 입력→결과→피드백 제출 → Supabase 에 feedback 1건, events 8건 저장 확인(SQL 조회, `source=development`).
+- E2E 는 `--no-remote` 빌드로 실행해 테스트 기록이 DB 에 쌓이지 않게 함. E2E 28/28 통과.
+- 남은 일: Vercel Environment Variables 에 `PALJA_SUPABASE_URL`, `PALJA_SUPABASE_ANON_KEY` 등록 (사용자 계정에서).

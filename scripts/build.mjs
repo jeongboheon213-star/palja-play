@@ -3,6 +3,7 @@
 //   node scripts/build.mjs                 → production 빌드 → dist/       (debug 화면 제외, minify)
 //   node scripts/build.mjs --dev           → development 빌드 → dist-dev/  (debug 화면 포함, 개발 표시)
 //   node scripts/build.mjs --dev --serve   → dist-dev/ 를 http://localhost:5173 으로 제공 (변경 시 다시 빌드)
+//   --no-remote                            → Supabase 설정을 무시 (E2E 용)
 //
 // 공유 문구의 공개 URL 은 빌드 시 PALJA_PUBLIC_URL 환경 변수로 넣는다 (없으면 링크 없이 공유).
 import * as esbuild from "esbuild";
@@ -24,8 +25,10 @@ const dev = process.argv.includes("--dev");
 const serve = process.argv.includes("--serve");
 const outdir = dev ? "dist-dev" : "dist";
 const publicUrl = process.env.PALJA_PUBLIC_URL || null;
-const supabaseUrl = process.env.PALJA_SUPABASE_URL || null;
-const supabaseAnonKey = process.env.PALJA_SUPABASE_ANON_KEY || null;
+// --no-remote: 자동 테스트(E2E)용. Supabase 설정이 있어도 쓰지 않는다 (테스트 기록이 DB 에 쌓이지 않게)
+const noRemote = process.argv.includes("--no-remote");
+const supabaseUrl = noRemote ? null : process.env.PALJA_SUPABASE_URL || null;
+const supabaseAnonKey = noRemote ? null : process.env.PALJA_SUPABASE_ANON_KEY || null;
 // 실수 방지: 관리자(service_role/secret) 키는 브라우저 번들에 넣지 않는다
 if (supabaseAnonKey && (/^sb_secret_/.test(supabaseAnonKey) || /service_role/.test(Buffer.from(supabaseAnonKey.split(".")[1] ?? "", "base64").toString()))) {
   throw new Error("PALJA_SUPABASE_ANON_KEY 에 관리자(service_role/secret) 키가 들어 있습니다. 브라우저에는 anon(공개) 키만 넣으세요.");

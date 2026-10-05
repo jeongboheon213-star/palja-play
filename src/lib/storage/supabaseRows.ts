@@ -79,7 +79,8 @@ export function supabaseInsertRequest(baseUrl: string, anonKey: string, table: s
       method: "POST",
       headers: {
         apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
+        // 새 publishable 키(sb_publishable_…)는 apikey 헤더만으로 충분. 예전 anon(JWT) 키는 Bearer 도 함께 보낸다.
+        ...(anonKey.startsWith("sb_") ? {} : { Authorization: `Bearer ${anonKey}` }),
         "Content-Type": "application/json",
         Prefer: "return=minimal",
       },

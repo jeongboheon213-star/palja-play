@@ -11,7 +11,7 @@
     "build": "node scripts/build.mjs",
     "build:dev": "node scripts/build.mjs --dev",
     "dev": "node scripts/build.mjs --dev --serve",
-    "e2e": "node scripts/build.mjs --dev && node scripts/e2e.mjs"
+    "e2e": "node scripts/build.mjs --dev --no-remote && node scripts/e2e.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
