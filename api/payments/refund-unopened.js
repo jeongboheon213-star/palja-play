@@ -184,21 +184,78 @@ var WHEN_PREPARING = Object.freeze({
 });
 
 // src/server/payments/service.ts
-var ORDER_ID_RE = /^[A-Za-z0-9_-]{6,64}$/;
+var PAID_PRODUCT_IDS = ["premium_money", "premium_love", "premium_career"];
+function productDomains(productId) {
+  return PRODUCTS[productId].domains;
+}
+function serverPrice(productId) {
+  if (!PAID_PRODUCT_IDS.includes(productId)) return null;
+  const p = PRODUCTS[productId];
+  return { amount: p.priceKrw, orderName: `사주팔자PLAY ${p.name}` };
+}
+var SIGNAL_ID_RE = /^[a-z]+(\.[a-z_]+)+$/;
+function chartKeyFor(productId, signalIds, sha2562) {
+  if (!Array.isArray(signalIds) || signalIds.length === 0 || signalIds.length > 40) return null;
+  const domains = productDomains(productId);
+  const ids = Array.from(new Set(signalIds)).filter((x) => typeof x === "string");
+  if (ids.length !== new Set(signalIds).size) return null;
+  for (const id of ids) {
+    if (!SIGNAL_ID_RE.test(id) || !(id in PREMIUM_COPY) || !domains.includes(id.split(".")[0])) return null;
+  }
+  ids.sort();
+  return { key: sha2562(`${productId}|${ids.join(",")}`), ids };
+}
+function normalizePurchaseCode(code) {
+  if (typeof code !== "string") return null;
+  const c = code.toUpperCase().replace(/[\s-]/g, "");
+  return /^[A-Z0-9]{16}$/.test(c) ? c : null;
+}
 var fail = (status, code, message) => ({ ok: false, status, code, message });
-async function recordFailure(deps, input) {
-  const orderId = typeof input.orderId === "string" ? input.orderId : "";
-  if (!ORDER_ID_RE.test(orderId)) return fail(400, "INVALID_REQUEST", "주문 정보가 올바르지 않아요.");
-  const code = typeof input.code === "string" ? input.code.slice(0, 80) : "UNKNOWN";
-  const message = typeof input.message === "string" ? input.message.slice(0, 300) : "";
-  const status = code === "PAY_PROCESS_CANCELED" ? "CANCELLED" : "FAILED";
+async function refundOrder(deps, input) {
   try {
-    const changed = await deps.repo.transition(orderId, ["CREATED"], { status, failure_code: code, failure_message: message });
-    return { ok: true, status: 200, body: { status: changed ? status : "UNCHANGED" } };
+    const order = await deps.repo.get(input.orderId);
+    if (!order) return fail(404, "ORDER_NOT_FOUND", "주문 없음");
+    if (order.status === "REFUNDED") return { ok: true, status: 200, body: { status: "REFUNDED" } };
+    if (!["PAID", "REFUND_REQUESTED"].includes(order.status) || !order.payment_key) return fail(409, "NOT_REFUNDABLE", `환불할 수 없는 상태: ${order.status}`);
+    if (order.toss_mode !== deps.tossMode) return fail(409, "MODE_MISMATCH", "결제 환경이 맞지 않아요.");
+    if (order.status === "PAID") {
+      const locked = await deps.repo.transition(order.order_id, ["PAID"], { status: "REFUND_REQUESTED" });
+      if (!locked) return fail(409, "REFUND_PROCESSING", "취소 상태를 다시 확인해 주세요.");
+    }
+    const r = await deps.toss.cancel({ paymentKey: order.payment_key, reason: input.reason.slice(0, 200), idempotencyKey: `refund-${order.order_id}` });
+    if (!r.ok && r.code !== "ALREADY_CANCELED_PAYMENT") return fail(503, "REFUND_PROCESSING", "취소 결과를 확인하는 중이에요. 다시 확인하거나 고객 문의로 알려 주세요.");
+    const confirmed = r.ok ? r : await deps.toss.getByOrderId(order.order_id);
+    if (!confirmed.ok || confirmed.payment.status !== "CANCELED" || confirmed.payment.orderId !== order.order_id || confirmed.payment.paymentKey !== order.payment_key || confirmed.payment.totalAmount !== order.amount) {
+      return fail(503, "REFUND_PROCESSING", "취소 결과를 확인하는 중이에요. 고객 문의로 알려 주세요.");
+    }
+    const saved = await deps.repo.transition(order.order_id, ["REFUND_REQUESTED"], { status: "REFUNDED", refund_reason: input.reason.slice(0, 200) });
+    if (!saved && (await deps.repo.get(order.order_id))?.status !== "REFUNDED") return fail(503, "STORAGE_ERROR", "취소 기록을 다시 확인해야 해요.");
+    return { ok: true, status: 200, body: { status: "REFUNDED" } };
   } catch {
-    return fail(503, "STORAGE_ERROR", "상태를 저장하지 못했어요.");
+    return fail(503, "STORAGE_ERROR", "취소 상태를 확인하지 못했어요. 다시 시도해 주세요.");
   }
 }
+async function refundUnopenedOrder(deps, input) {
+  const code = normalizePurchaseCode(input.purchaseCode);
+  const productId = typeof input.productId === "string" ? input.productId : "";
+  const chart = serverPrice(productId) ? chartKeyFor(productId, input.signalIds, deps.sha256) : null;
+  if (!code || !chart) return fail(404, "NOT_REFUNDABLE", "취소할 구매 정보를 확인해 주세요.");
+  try {
+    const hash = deps.sha256(code);
+    const order = await deps.repo.findByPurchaseCodeHash(hash);
+    if (!order || order.product_id !== productId || order.chart_key !== chart.key || order.toss_mode !== deps.tossMode) return fail(404, "NOT_REFUNDABLE", "취소할 구매 정보를 확인해 주세요.");
+    if (order.status === "REFUNDED") return { ok: true, status: 200, body: { status: "REFUNDED" } };
+    const locked = await deps.repo.claimUnopenedRefund(order.order_id, hash, chart.key, productId, deps.tossMode);
+    if (!locked) return fail(409, "SUPPORT_REQUIRED", "리포트가 제공되었거나 취소할 수 없는 상태예요. 결제 오류·중복 결제·서비스 문제 등은 고객 문의로 확인해 주세요.");
+    return refundOrder(deps, { orderId: order.order_id, reason: "미열람 구매 취소" });
+  } catch {
+    return fail(503, "STORAGE_ERROR", "취소 상태를 확인하지 못했어요.");
+  }
+}
+
+// api-lib/premium-limit.ts
+import { createHmac } from "node:crypto";
+import { isIP } from "node:net";
 
 // api-lib/env.ts
 import { createHash, randomBytes, randomUUID } from "node:crypto";
@@ -346,13 +403,53 @@ function fromResult(r) {
   return r.ok ? json(r.status, r.body) : json(r.status, { code: r.code, message: r.message });
 }
 
-// api-src/payments/fail.ts
+// api-lib/premium-limit.ts
+function premiumLimitHashes(request, code, key, vercel) {
+  const raw = vercel ? request.headers.get("x-vercel-forwarded-for")?.trim() : null;
+  let client = "unidentified";
+  if (raw && isIP(raw) === 4) client = raw;
+  if (raw && isIP(raw) === 6) {
+    const normalized = new URL(`http://[${raw}]/`).hostname.slice(1, -1);
+    const [left, right] = normalized.split("::");
+    const a = left ? left.split(":") : [];
+    const b = right ? right.split(":") : [];
+    const full = right !== void 0 ? [...a, ...Array(8 - a.length - b.length).fill("0"), ...b] : a;
+    client = full.slice(0, 4).map((p) => p.padStart(4, "0")).join(":");
+  }
+  const digest = (context, value) => createHmac("sha256", key).update(`premium-limit-v1:${context}:${value}`).digest("hex");
+  return { p_client_hash: digest("client", client), p_code_hash: digest("code", normalizePurchaseCode(code) ?? "invalid") };
+}
+async function enforcePremiumLimit(request, code, env = process.env, fetchFn = fetch) {
+  const key = supabaseServerKey(env)?.key;
+  const url = env.SUPABASE_URL;
+  if (!key || !url) return json(503, { code: "RATE_LIMIT_UNAVAILABLE", message: "구매 확인을 잠시 이용할 수 없어요." });
+  try {
+    const response = await fetchFn(`${url.replace(/\/+$/, "")}/rest/v1/rpc/consume_premium_attempt`, {
+      method: "POST",
+      headers: { apikey: key, ...key.startsWith("sb_") ? {} : { Authorization: `Bearer ${key}` }, "Content-Type": "application/json" },
+      body: JSON.stringify(premiumLimitHashes(request, code, key, env.VERCEL === "1"))
+    });
+    if (!response.ok) throw new Error("limiter unavailable");
+    const allowed = await response.json();
+    if (allowed === true) return null;
+    if (allowed !== false) throw new Error("invalid limiter response");
+    const result = json(429, { code: "TOO_MANY_ATTEMPTS", message: "구매 확인 요청이 많아요. 10분 뒤 다시 시도해 주세요." });
+    result.headers.set("Retry-After", "600");
+    return result;
+  } catch {
+    return json(503, { code: "RATE_LIMIT_UNAVAILABLE", message: "구매 확인을 잠시 이용할 수 없어요. 잠시 후 다시 시도해 주세요." });
+  }
+}
+
+// api-src/payments/refund-unopened.ts
 async function POST(request) {
   const cfg = paymentsConfig();
   if (!cfg.ok) return json(cfg.status, { code: cfg.code, message: cfg.message });
   const body = await readJson(request);
   if (!body) return json(400, { code: "INVALID_REQUEST", message: "요청 형식이 올바르지 않아요." });
-  return fromResult(await recordFailure(cfg.deps, { orderId: body.orderId, code: body.code, message: body.message }));
+  const limited = await enforcePremiumLimit(request, body.purchaseCode);
+  if (limited) return limited;
+  return fromResult(await refundUnopenedOrder(cfg.deps, { purchaseCode: body.purchaseCode, productId: body.productId, signalIds: body.signalIds }));
 }
 export {
   POST

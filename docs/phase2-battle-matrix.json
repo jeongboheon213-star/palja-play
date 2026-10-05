@@ -1,0 +1,256 @@
+{
+  "base": "http://127.0.0.1:57275",
+  "browser": "Edg/154.0.4258.53",
+  "table": [
+    {
+      "size": "m390",
+      "method": "copy",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "m390",
+      "method": "webshare",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "m390",
+      "method": "kakao",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "m390",
+      "method": "sms",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "m320",
+      "method": "copy",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "m320",
+      "method": "webshare",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "m320",
+      "method": "kakao",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "m320",
+      "method": "sms",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "d1280",
+      "method": "copy",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "d1280",
+      "method": "webshare",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "d1280",
+      "method": "kakao",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "d1280",
+      "method": "qr",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "d1920",
+      "method": "copy",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "d1920",
+      "method": "webshare",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "d1920",
+      "method": "kakao",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    },
+    {
+      "size": "d1920",
+      "method": "qr",
+      "url": "http://127.0.0.1:57275/?b=MnxneWVvbmctY2hhbGxlbmdlcnw0MCw2NSw1NSw4MCw4OSw4MCw2OHzrs7Ttl4x8NmRkYWUy",
+      "outcome": "패배"
+    }
+  ],
+  "results": [
+    {
+      "name": "m390: 기기 화면 구분 (mobile)",
+      "ok": true
+    },
+    {
+      "name": "m390: 보이는 버튼 = 지원하는 방식만 [\"sms-btn\",\"kakao-btn\",\"webshare-btn\",\"copy-btn\"]",
+      "ok": true
+    },
+    {
+      "name": "m390: 카카오 SDK 전달값 — link·webUrl·버튼 링크 모두 같은 링크",
+      "ok": true
+    },
+    {
+      "name": "m390: 모든 방식의 링크가 같은 canonical battle URL [\"copy\",\"webshare\",\"kakao\",\"sms\"]",
+      "ok": true
+    },
+    {
+      "name": "m390: [copy] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "m390: [webshare] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "m390: [kakao] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "m390: [sms] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "m320: 기기 화면 구분 (mobile)",
+      "ok": true
+    },
+    {
+      "name": "m320: 보이는 버튼 = 지원하는 방식만 [\"sms-btn\",\"kakao-btn\",\"webshare-btn\",\"copy-btn\"]",
+      "ok": true
+    },
+    {
+      "name": "m320: 카카오 SDK 전달값 — link·webUrl·버튼 링크 모두 같은 링크",
+      "ok": true
+    },
+    {
+      "name": "m320: 모든 방식의 링크가 같은 canonical battle URL [\"copy\",\"webshare\",\"kakao\",\"sms\"]",
+      "ok": true
+    },
+    {
+      "name": "m320: [copy] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "m320: [webshare] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "m320: [kakao] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "m320: [sms] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "d1280: 기기 화면 구분 (pc)",
+      "ok": true
+    },
+    {
+      "name": "d1280: 보이는 버튼 = 지원하는 방식만 [\"kakao-btn\",\"copy-btn\",\"phone-btn\",\"webshare-btn\"]",
+      "ok": true
+    },
+    {
+      "name": "d1280: 카카오 SDK 전달값 — link·webUrl·버튼 링크 모두 같은 링크",
+      "ok": true
+    },
+    {
+      "name": "d1280: PC 문자 안내 문구 + QR 표시",
+      "ok": true
+    },
+    {
+      "name": "d1280: 모든 방식의 링크가 같은 canonical battle URL [\"copy\",\"webshare\",\"kakao\",\"qr\"]",
+      "ok": true
+    },
+    {
+      "name": "d1280: [copy] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "d1280: [webshare] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "d1280: [kakao] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "d1280: [qr] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "d1920: 기기 화면 구분 (pc)",
+      "ok": true
+    },
+    {
+      "name": "d1920: 보이는 버튼 = 지원하는 방식만 [\"kakao-btn\",\"copy-btn\",\"phone-btn\",\"webshare-btn\"]",
+      "ok": true
+    },
+    {
+      "name": "d1920: 카카오 SDK 전달값 — link·webUrl·버튼 링크 모두 같은 링크",
+      "ok": true
+    },
+    {
+      "name": "d1920: PC 문자 안내 문구 + QR 표시",
+      "ok": true
+    },
+    {
+      "name": "d1920: 모든 방식의 링크가 같은 canonical battle URL [\"copy\",\"webshare\",\"kakao\",\"qr\"]",
+      "ok": true
+    },
+    {
+      "name": "d1920: [copy] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "d1920: [webshare] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "d1920: [kakao] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    },
+    {
+      "name": "d1920: [qr] 새 브라우저 컨텍스트에서 링크 열기 → 초대 → 친구 계산 → VS 7라운드",
+      "ok": true,
+      "detail": "패배"
+    }
+  ]
+}

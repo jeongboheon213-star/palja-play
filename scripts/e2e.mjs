@@ -261,6 +261,11 @@ await check("결과 최상단: 캐릭터·한 줄 설명·진행 문구, 개발�
   for (const n of ["input_start", "calculation_complete", "result_view"]) assert(ev.includes(n), n);
 });
 await shot("05-result-top-mobile");
+await check("티어: PLAY 기준 종합 티어·TOP 능력치 표시", async () => {
+  const text = await evaluate("document.querySelector('#palja-tier')?.innerText ?? ''");
+  assert(text.includes("TIER") && text.includes("사주팔자PLAY 기준 상위") && text.includes("TOP 능력치"), "티어 카드");
+  assert(!/대한민국 상위|한국인 상위|실제 인구 상위/.test(text), "인구통계 과장 금지");
+});
 
 await check("7개 능력치: 게임 스탯 막대 + '기본 운 밸런스' 명칭 + 운세 아님 안내", async () => {
   const stats = await evaluate("[...document.querySelectorAll('#stats .stat')].map(s => [s.querySelector('.nm').textContent, s.querySelector('.v').textContent, s.querySelectorAll('.blocks i.f').length])");

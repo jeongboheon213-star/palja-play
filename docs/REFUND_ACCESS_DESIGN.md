@@ -1,6 +1,6 @@
 # Premium 열람·환불 정책 설계 (Phase 2)
 
-상태: 설계 확정 / 구현·법률 최종문구 검토 전
+상태: 코드·로컬 테스트 구현 완료 / 실제 Supabase·Toss TEST 적용 및 법률 최종문구 검토 전. 최신 구현은 `PREMIUM_ACCESS_IMPLEMENTATION.md` 참고.
 
 ## 목표
 결제 직후 Premium 전체 리포트를 읽고 곧바로 단순 변심 환불을 요청하는 악용을 줄이되, 결제 오류·중복 결제·콘텐츠 미제공·법령상 필요한 예외까지 막지 않는다.
@@ -29,10 +29,10 @@ PAID → 결제 완료 화면 → [구매 취소] 또는 [리포트 열기] → 
 - 환불 API는 고객 브라우저에 관리자 권한을 노출하지 않는다.
 
 ## 아직 하지 않은 것
-- 실제 고객용 환불 버튼
+- 실제 DB·Toss에서 고객용 미열람 취소 버튼 검증 (코드·모의 브라우저 검사 완료)
 - Toss TEST 취소 호출 검증
-- content_opened_at API 기록
-- rate limit
+- 실제 Supabase content_opened_at/RPC migration 적용 (코드 구현 완료)
+- 실제 Supabase rate limit 적용 (코드 구현 완료)
 - 최종 법률 문구/약관
 - LIVE 결제
 

@@ -8,8 +8,9 @@ import { SCORE_VERSION } from "../src/lib/interpretation/score";
 
 const START = Date.UTC(1962, 0, 1);
 const END = Date.UTC(2026, 11, 31);
-const STEP_DAYS = 5;
-const TIMES = ["00:30", "06:30", "12:30", "18:30"] as const;
+// Daily grid avoids aliasing the 60-day pillar cycle; cover every two-hour branch.
+const STEP_DAYS = 1;
+const TIMES = ["00:30", "02:30", "04:30", "06:30", "08:30", "10:30", "12:30", "14:30", "16:30", "18:30", "20:30", "22:30"] as const;
 const GENDERS = ["male", "female"] as const;
 
 type Row = Record<StatKey, number> & { total: number };
@@ -45,17 +46,19 @@ function summary(values: readonly number[]) {
     p90: quantile(s, 0.90),
     p95: quantile(s, 0.95),
     p99: quantile(s, 0.99),
+    histogram: Array.from({ length: 101 }, (_, score) => s.filter((v) => v === score).length),
   };
 }
 
 const rows: Row[] = [];
 let rejected = 0;
+const rejectionReasons: Record<string, number> = {};
 for (let ms = START; ms <= END; ms += STEP_DAYS * 86400000) {
   const birthDate = ymd(ms);
   for (const birthTime of TIMES) {
     for (const gender of GENDERS) {
       const r = computeBetaResult({ birthDate, birthTime, gender, calendar: "solar", birthCountry: "KR" });
-      if (!r.ok) { rejected++; continue; }
+      if (!r.ok) { rejected++; const reason = JSON.stringify(r); rejectionReasons[reason] = (rejectionReasons[reason] ?? 0) + 1; continue; }
       const row = {} as Row;
       for (const k of STAT_KEYS) row[k] = r.free.scores.find((x) => x.stat === k)!.value;
       row.total = Math.round(STAT_KEYS.reduce((sum, k) => sum + row[k], 0) / STAT_KEYS.length);
@@ -81,5 +84,6 @@ console.log(JSON.stringify({
   },
   accepted: rows.length,
   rejected,
+  rejectionReasons,
   report,
 }, null, 2));

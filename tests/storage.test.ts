@@ -49,7 +49,13 @@ test("SQL: RLS 켜짐, anon 은 INSERT 만 (SELECT/UPDATE/DELETE 정책 없음),
     assert.ok(sql.includes(`alter table public.${t} enable row level security`), t);
     assert.ok(sql.includes(`grant insert on public.${t} to anon`), t);
   }
-  assert.ok(!/for (select|update|delete|all)/i.test(sql));
+  // Inspect policy declarations, not transaction row locks (FOR UPDATE is not an RLS grant).
+  const policies = sql.replace(/^--.*$/gm, "").match(/create\s+policy[^;]+;/gi) ?? [];
+  assert.equal(policies.length, 2, "only the two anonymous INSERT policies are allowed");
+  for (const policy of policies) {
+    assert.match(policy, /on public\.beta_(feedback|events)\s+for insert to anon/i);
+    assert.ok(!/for (select|update|delete|all)/i.test(policy));
+  }
   // 2026-10-05: orders 에 서버 역할(service_role) 권한이 추가되어, "누구에게" 주는지까지 검사하도록 정밀화.
   // 브라우저 역할(anon/authenticated/public)에는 INSERT 외 어떤 grant 도 없어야 한다 (원래 의도 유지).
   const grants = sql.replace(/^--.*$/gm, "").match(/grant [^;]+;/gi) ?? [];

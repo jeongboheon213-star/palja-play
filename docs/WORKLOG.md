@@ -295,3 +295,15 @@
 - RLS 켜짐 여부·service_role 권한·authenticated 권한은 공개 키로 확인 불가 → 사용자가 SQL Editor 에서 읽기 전용 조회 실행 필요.
 - 사용자 SQL Editor 조회 결과(2026-10-05): RLS = true, anon·authenticated 권한 없음 ✔. 그러나 service_role 에 DELETE·TRUNCATE·REFERENCES·TRIGGER 도 있음 ✖ (Supabase 가 새 테이블에 자동으로 주는 기본 권한 — 기존 테스트는 "삭제 grant 문이 없다"만 검사해서 놓침).
   → 테스트 강화(service_role 회수 후 부여), 원본 migration 수정, 이미 실행한 DB 용 보정 `20261005020000_orders_restrict_service_role.sql`(권한만, 데이터·구조 변경 없음). 사용자 Run 필요.
+
+## 2026-10-05 — Phase 2 티어·최초 제공·복구/환불 보호 (Codex)
+
+- 기존 작업 브랜치/PR #1에서 계속함. 사용자 확인에 따라 orders 기존 권한 보정은 완료로 처리하고 재실행 요청하지 않음.
+- 초기 분포 분석 실제 실행(37,992건) 후 5일 간격의 60일 주기 편향을 발견. 하루 간격·12시간대·성별 동일 비중으로 보완해 유효 569,776건 확보(서머타임 제외 8건). 점수 빈도 JSON·버전 기준표·동점 포함 상위 비율·티어 UI와 배틀 표시 구현. 기존 score/compareBattle/createBattleShare 공식·주소 구조 변경 없음.
+- 성공 주소/서버 confirm만으로 본문을 자동 요청하지 않도록 변경. 명시적 열기에서 DB 행 잠금·권한 재확인·DB 시각 최초 제공 기록. 기록 불가/REFUND_REQUESTED/REFUNDED에서는 본문 차단.
+- 미열람 고객 취소와 열람 후 관리자 예외 환불을 구분. Toss 호출 전에 REFUND_REQUESTED로 접근 잠금; 전체 취소 응답 확인; DB 실패/미확정 응답은 멱등 재시도로 복구. 3분 법적 제한은 없음.
+- 구매코드 본문/취소 API에 HMAC 네트워크/코드 + DB 전체 제한 추가. 원 IP·코드 미저장, DB 장애 시 차단, IPv6 /64. 설정·보관·공유망/분산 공격 한계 문서화.
+- 새 migration, 사용자용 합본/읽기 전용 검증 SQL, TEST 관리자 환불·코드 재발급 도구 추가. 실제 Supabase 실행·Toss 결제는 하지 않음.
+- 실제 로컬 검사: npm ci, check 243/243, E2E 36/36, 배틀 34/34, 모의 결제 브라우저 7/7. 테스트 오류(RLS 정책/행 잠금 오인) 원인 수정하며 기존 보안 조건을 유지·강화. 최초 모의 브라우저 빌드가 결제 OFF로 실패한 원인을 고치고 재검사함.
+- 분석 재현 비교·최신 GitHub CI 기록은 PROGRESS에 후속 기록. 독립 PostgreSQL CI 검사를 추가해 실제 Supabase와 분리함.
+- npm 패키지 추가 없음. main/Production/LIVE 변경 없음. 다음은 사용자 SQL Editor Run 후 Preview TEST 키 연결.

@@ -56,7 +56,11 @@ export function createSupabaseOrderRepo(baseUrl: string, serviceRoleKey: string,
     return text ? JSON.parse(text) : null;
   }
   const one = (rows: unknown): Order | null => (Array.isArray(rows) && rows.length > 0 ? (rows[0] as Order) : null);
+  const rpc = async (name: string, orderId: string, codeHash: string, chartKey: string, productId: string, mode: string) =>
+    one(await req(`${baseUrl.replace(/\/+$/, "")}/rest/v1/rpc/${name}`, { method: "POST", body: JSON.stringify({ p_order_id: orderId, p_code_hash: codeHash, p_chart_key: chartKey, p_product_id: productId, p_mode: mode }) }));
   return {
+    openContent: (id, code, chart, product, mode) => rpc("open_paid_content", id, code, chart, product, mode),
+    claimUnopenedRefund: (id, code, chart, product, mode) => rpc("claim_unopened_refund", id, code, chart, product, mode),
     async insert(o: NewOrder) {
       await req(root, { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(o) });
     },

@@ -1,7 +1,7 @@
 // 결제(토스페이먼츠) 서버 계층 타입. 이 폴더(src/server)는 브라우저 번들에 들어가지 않는다 (아키텍처 테스트).
 // 환경 변수·시계·난수는 여기서 읽지 않고 호출자(api 계층)가 주입한다.
 
-export const ORDER_STATUSES = ["CREATED", "PAYMENT_REQUESTED", "PAID", "FAILED", "CANCELLED", "REFUNDED"] as const;
+export const ORDER_STATUSES = ["CREATED", "PAYMENT_REQUESTED", "PAID", "FAILED", "CANCELLED", "REFUND_REQUESTED", "REFUNDED"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export type TossMode = "test" | "live";
@@ -23,11 +23,12 @@ export interface Order {
   readonly failure_code: string | null;
   readonly failure_message: string | null;
   readonly approved_at: string | null;
+  readonly content_opened_at: string | null;
 }
 
 export type NewOrder = Pick<Order, "order_id" | "result_id" | "product_id" | "amount" | "currency" | "status" | "chart_key" | "purchase_code_hash" | "toss_mode" | "source">;
 
-export type OrderPatch = Partial<Pick<Order, "status" | "payment_key" | "method" | "failure_code" | "failure_message" | "approved_at">> & { readonly refund_reason?: string };
+export type OrderPatch = Partial<Pick<Order, "status" | "payment_key" | "method" | "failure_code" | "failure_message" | "approved_at" | "purchase_code_hash">> & { readonly refund_reason?: string };
 
 /** 주문 저장소 (Supabase service_role). 실패하면 예외를 던진다. */
 export interface OrderRepo {
@@ -36,6 +37,10 @@ export interface OrderRepo {
   findByPurchaseCodeHash(hash: string): Promise<Order | null>;
   /** status 가 from 중 하나일 때만 바꾼다(원자적). 바뀌면 바뀐 주문, 아니면 null */
   transition(orderId: string, from: readonly OrderStatus[], patch: OrderPatch): Promise<Order | null>;
+  /** DB row lock, PAID check and first-open timestamp in one transaction. */
+  openContent(orderId: string, codeHash: string, chartKey: string, productId: string, mode: TossMode): Promise<Order | null>;
+  /** Atomically prevent content opening before customer cancellation begins. */
+  claimUnopenedRefund(orderId: string, codeHash: string, chartKey: string, productId: string, mode: TossMode): Promise<Order | null>;
 }
 
 /** 토스 결제 객체 중 우리가 쓰는 부분 */

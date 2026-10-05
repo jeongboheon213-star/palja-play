@@ -1,5 +1,19 @@
 # 인계 문서 (HANDOFF) — 2026-10-05 기준
 
+## 최신 Phase 2 인계 (아래의 이전 기록보다 우선)
+
+- 브랜치 `chatgpt/payment-tier-phase2`, Draft PR #1에서 이어서 작업한다. main merge/Production 변경/LIVE 활성화 금지.
+- orders RLS·service_role SELECT/INSERT/UPDATE 보정은 **사용자가 이미 완료했다. 다시 실행을 요구하지 않는다.**
+- 티어 기준은 실제 569,776건 분석으로 교체했다. `docs/TIER_DESIGN.md`, `docs/tier-distribution.json`, `src/lib/tier/` 참고. 기존 score·배틀 공식·공유 주소는 유지했다.
+- 명시적 열람/최초 제공 기록, 미열람 취소, REFUND_REQUESTED 잠금, DB 구매코드 제한, TEST 관리자 환불·코드 재발급 구현. `docs/PREMIUM_ACCESS_IMPLEMENTATION.md` 참고.
+- 로컬 검증: `npm ci`; `npm run check` 243/243; 화면 E2E 36/36; 배틀 34/34; 모의 결제 화면 7/7. 실제 DB/Toss 실행으로 표현하지 않는다. 최신 CI와 분석 재현 기록은 `docs/PROGRESS.md` 참고.
+- **다음 사용자 단계:** 기존 Supabase SQL Editor에서 `supabase/phase2-apply.sql` 실행 → `supabase/phase2-verify.sql` 읽기 전용 결과 확인. 사용자 전용 Run 단계이므로 여기서 기다린다.
+- 그 다음 Vercel **Preview**에 TEST 키를 사용자가 입력하고 실제 Toss TEST 결제/취소 및 Supabase 상태를 검증한다. Secret Key를 채팅에 요청하지 않는다.
+- 단기 HMAC 제한 기록의 보관 정리, 실제 문의 창구·사업자 정보·최종 법률 문구·실기기·외부 취소 상태 동기화 등 LIVE 준비는 미완료다.
+- 새 npm 패키지는 추가하지 않았다. 사용자는 비개발자이며, 처리 가능한 작업은 중간 승인 없이 계속한다. 사용자만 가능한 로그인/키 입력/SQL Run·LIVE 활성화·중요 사업 정책에서 멈춘다.
+
+아래는 이전 Production/기술 배경이다. 다음 작업의 완료 상태는 최신 진행판을 따른다.
+
 다른 AI 도구(GPT/Codex 등)나 개발자가 이 저장소를 이어서 작업하기 위한 문서다. **먼저 이 문서 → `CLAUDE.md` → `docs/WORKLOG.md` 마지막 부분**을 읽을 것.
 
 ## 0. 프로젝트 한 줄 요약
@@ -16,12 +30,12 @@
 | 배틀 공유 버그 (카톡·링크복사 시 일반 첫 화면) | 수정·배포 완료 (73eddbf). 링크 `/?b=<base64url 토큰+체크섬>`, 모든 공유 방식이 `createBattleShare()` 하나만 사용. Production 매트릭스 26/26 |
 | 카카오톡 공유 버튼 | 코드 완료, **키 미설정이라 숨김**. 실제 카카오 앱 전송 NOT TESTED |
 | Supabase 피드백·이벤트 | 연결됨 (anon INSERT 만) |
-| Supabase `orders` 테이블 | 생성됨. RLS ON, anon/authenticated 권한 없음 확인. **service_role 에 DELETE/TRUNCATE 등 기본 권한이 남아 있음 → 보정 SQL 실행 대기** (아래 2-1) |
+| Supabase `orders` 테이블 | RLS ON, anon/authenticated 권한 없음, service_role SELECT/INSERT/UPDATE 보정 완료(사용자 확인) |
 | 결제 (토스페이먼츠) | 코드는 TEST 모드까지 구현, **Production 은 OFF** (`PALJA_PAYMENTS_MODE` 미설정). 실제 TEST 결제 아직 안 함 |
 | LIVE 결제 | **절대 OFF.** 사용자가 정확히 "실제 결제를 활성화해" 라고 승인하기 전에는 켜지 않는다 |
 | NOT TESTED | iPhone Safari, Chrome(이 PC 에 Edge 만), 실제 카카오톡 앱, 실제 문자 발송 |
 
-## 2. 다음 할 일 (순서대로, 사용자 확인하며)
+## 2. 이전 인계 시점의 목록 (실행 지시 아님 — 최신 인계·진행판 우선)
 1. **orders 권한 보정 (사용자 Run 대기 중)**
    Supabase → SQL Editor 에서 `supabase/migrations/20261005020000_orders_restrict_service_role.sql` 내용 실행:
    ```sql

@@ -1,0 +1,33 @@
+{
+  "mode": "local fake APIs, no Toss/Supabase",
+  "results": [
+    {
+      "name": "confirm does not request report",
+      "ok": true
+    },
+    {
+      "name": "open and unopened cancellation buttons present",
+      "ok": true
+    },
+    {
+      "name": "success URL stripped after confirmation",
+      "ok": true
+    },
+    {
+      "name": "click explicitly requests content",
+      "ok": true
+    },
+    {
+      "name": "rate limit error shown and retry enabled",
+      "ok": true
+    },
+    {
+      "name": "cancel never requests report",
+      "ok": true
+    },
+    {
+      "name": "uncertain confirmation cannot open content and retains retry URL",
+      "ok": true
+    }
+  ]
+}

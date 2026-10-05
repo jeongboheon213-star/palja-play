@@ -6,12 +6,13 @@
 
 - [x] ① orders DB 보안 보정 및 사용자 SQL 확인
 - [x] ②-A Toss TEST 결제 코드·보안 1차 점검
-- [ ] ②-B 티어 기준분포 분석 (분석기 작성 완료, 실행 결과 검증 대기)
-- [ ] ②-C 티어 계산 엔진
-- [ ] ②-D 티어 결과 UI·배틀 표시
-- [ ] ②-E 콘텐츠 열람 상태·환불 정책 구현 (정책 설계 + DB migration 준비 완료, API 구현 대기)
-- [ ] ②-F 구매복구·환불 악용 방지
-- [ ] ②-G 전체 회귀 테스트
+- [x] ②-B 실제 기준분포 분석: 569,776건 (하루 간격·12시간대, 서머타임 8건 제외)
+- [x] ②-C 버전이 있는 티어 모듈·동점 처리·빈도 기준 테스트
+- [x] ②-D 결과 UI·배틀 티어 표시 (기존 score·승패·공유 URL 유지)
+- [x] ②-E 명시적 본문 열기·최초 제공 기록·미열람 취소 코드 및 migration
+- [x] ②-F DB 요청 제한·환불 잠금·TEST 관리자 예외 환불/코드 재발급 도구
+- [x] ②-G 로컬 회귀: 단위 243/243, 화면 36/36, 배틀 34/34, 모의 결제 화면 7/7
+- [ ] 신규 migration 실제 Supabase 적용·DB 권한 확인 (사용자 SQL Editor Run 필요)
 - [ ] ③ Toss TEST 키 연결 (사용자 작업 필요)
 - [ ] ④ 실제 Toss TEST 결제
 - [ ] ⑤ 운영 환불·구매복구 완성
@@ -28,8 +29,8 @@
 - PAID 주문을 failUrl로 FAILED/CANCELLED로 덮어쓰지 않음.
 - TEST/LIVE 키 모드 검사 및 LIVE 이중 잠금 존재.
 - Supabase Secret/Toss Secret은 서버 전용 구조.
-- 환불 API 로직은 있으나 현재는 단순 PAID→REFUNDED이며, 콘텐츠 최초 열람 상태와 고객용 환불 정책은 아직 구현 전.
-- 구매 코드 복구에는 rate limit이 아직 없어 LIVE 전 보완 필요.
+- Phase 2에서 콘텐츠 최초 제공·미열람 취소·환불 확인 중 열람 잠금을 구현함. 실제 DB/Toss 적용 검증은 대기.
+- 구매코드 본문/취소 요청에 DB 기반 rate limit을 구현함. 실제 Supabase 적용 전에는 실패 시 본문을 차단함.
 
 ## 안전 원칙
 
@@ -41,7 +42,18 @@
 
 ## 최근 진행
 
-- 티어 분포 분석기와 PR 검증 workflow를 작업 브랜치에 추가함.
-- Draft PR #1 생성. GitHub Actions 실행 기록은 아직 없어 분포 숫자는 미검증 상태로 유지함.
-- Premium 최초 제공 시각 content_opened_at 컬럼 migration을 준비함. 아직 사용자 DB에는 실행하지 않음.
-- 환불 악용 방지 설계를 docs/REFUND_ACCESS_DESIGN.md에 기록함.
+- 5일 간격 표본의 60일 주기 편향을 발견해 하루 간격·12시간대로 확장하고 실제 실행함. 저장 결과: `tier-distribution.json`, 설계: `TIER_DESIGN.md`.
+- 종합점수 경계: S+ 79 / S 76 / A+ 72 / A 67 / B+ 62 / B 55 / C 그 아래. 동점 포함 상위 비율로 계산한다.
+- content_opened_at, DB 행 잠금, REFUND_REQUESTED, 제한 RPC까지 준비. **실제 Supabase에는 아직 실행하지 않음.**
+- SQL을 테스트할 독립 PostgreSQL CI job을 추가함. 최신 커밋 Actions 결과는 업로드 후 확인 대기.
+- 전체 분포를 다시 실행해 JSON 전체가 저장 결과와 동일함을 실제 확인했고, 실행용 기준표 일치 검사도 통과함.
+- 실제 실행 목록·수정한 테스트의 이유: `PHASE2_QA.md`. 구현·운영 한계: `PREMIUM_ACCESS_IMPLEMENTATION.md`.
+- 새 npm 패키지 추가 없음. main merge·Production 배포·LIVE 활성화 없음.
+
+## 바로 다음 사용자 단계
+
+1. 기존 Supabase 프로젝트 SQL Editor에 `supabase/phase2-apply.sql`을 붙여넣고 Run.
+2. `supabase/phase2-verify.sql`의 읽기 전용 확인 결과 전달(Secret Key 제외).
+3. 검증 후 Vercel **Preview**에 Toss TEST/서버 키를 직접 입력. 이후 실제 TEST 결제·환불 확인.
+
+법률 문구·사업자 정보·실기기·웹훅과 외부 취소 동기화·정기 보관 만료 처리 등 LIVE 준비는 미완료다. LIVE는 명시적 최종 승인 전 계속 OFF다.

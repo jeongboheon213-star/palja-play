@@ -294,10 +294,13 @@ input[type=text]:focus-visible,input[type=tel]:focus-visible{outline:3px solid v
     <ul class="list good" id="sheet-includes"></ul>
     <button class="btn" id="sheet-buy" type="button"></button>
     <button class="btn jade" id="sheet-owned" type="button" hidden>구매한 리포트 보기</button>
+    <button class="btn ghost" id="sheet-cancel" type="button" hidden>아직 열지 않은 구매 취소</button>
+    <p class="mute small">리포트 보기·구매 코드로 열기를 누르면 본문이 즉시 제공되고 최초 제공 시각이 기록돼요. 열람 이후 취소 요청은 고객 문의로 확인해 주세요. 결제 오류·중복 결제·서비스 오류 등 필요한 환불은 별도로 검토해요.</p>
     <details style="margin-top:12px"><summary>이미 구매했어요 (구매 코드로 열기)</summary>
       <p class="mute small" style="margin:8px 0 6px">결제 후 받은 구매 코드를 넣어 주세요. 같은 생년월일·시간으로 만든 결과에서만 열려요.</p>
       <input id="sheet-code" type="text" maxlength="19" placeholder="ABCD-EFGH-JKLM-NPQR" autocomplete="off" autocapitalize="characters">
       <button class="btn ghost" id="sheet-restore" type="button">구매 코드로 열기</button>
+      <button class="btn ghost" id="sheet-code-cancel" type="button">이 코드로 미열람 구매 취소</button>
     </details>
     <p class="err" id="sheet-err" role="alert"></p>
   </div>

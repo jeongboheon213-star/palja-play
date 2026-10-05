@@ -159,6 +159,10 @@ async function friendOpens(url, sizeKey, expectNick) {
     const rounds = await f.ev("document.querySelectorAll('#battle-result .round').length");
     const box = await f.ev("document.getElementById('battle-result')?.innerText ?? ''");
     assert(rounds === 7 && /승리|패배|무승부/.test(box), `VS 결과 rounds=${rounds}`);
+    if (isLocal) {
+      assert(await f.ev("document.querySelectorAll('#battle-result .battle-tier').length === 2"), "두 참가자 티어");
+      assert(box.includes("사주팔자PLAY 기준 상위"), "PLAY 기준 문구");
+    }
     const o = await f.ev("({sw: document.documentElement.scrollWidth, w: innerWidth})");
     assert(o.sw <= o.w, `가로 넘침 ${o.sw}>${o.w}`);
     assert(f.errors.length === 0, f.errors.join(" | "));

@@ -225,7 +225,7 @@ async function confirmPayment(deps, input) {
   if (order.status === "PAID") {
     return order.payment_key === paymentKey ? { ok: true, status: 200, body: { status: "PAID", orderId, productId: order.product_id, amount: order.amount } } : fail(409, "ALREADY_PAID_DIFFERENT_KEY", "이미 다른 결제로 처리된 주문이에요.");
   }
-  if (order.status === "REFUNDED" || order.status === "CANCELLED" || order.status === "FAILED") {
+  if (order.status === "REFUNDED" || order.status === "REFUND_REQUESTED" || order.status === "CANCELLED" || order.status === "FAILED") {
     return fail(409, `ORDER_${order.status}`, "이미 종료된 주문이에요.");
   }
   const amount = typeof input.amount === "number" ? input.amount : typeof input.amount === "string" && /^\d+$/.test(input.amount) ? Number(input.amount) : NaN;
@@ -320,7 +320,10 @@ function createSupabaseOrderRepo(baseUrl, serviceRoleKey, fetchFn = fetch) {
     return text ? JSON.parse(text) : null;
   }
   const one = (rows) => Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  const rpc = async (name, orderId, codeHash, chartKey, productId, mode) => one(await req(`${baseUrl.replace(/\/+$/, "")}/rest/v1/rpc/${name}`, { method: "POST", body: JSON.stringify({ p_order_id: orderId, p_code_hash: codeHash, p_chart_key: chartKey, p_product_id: productId, p_mode: mode }) }));
   return {
+    openContent: (id, code, chart, product, mode) => rpc("open_paid_content", id, code, chart, product, mode),
+    claimUnopenedRefund: (id, code, chart, product, mode) => rpc("claim_unopened_refund", id, code, chart, product, mode),
     async insert(o) {
       await req(root, { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(o) });
     },
