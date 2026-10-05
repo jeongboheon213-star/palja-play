@@ -81,6 +81,7 @@ async function launch(name, port) {
   await cdp("Network.enable", { maxPostDataSize: 65536 });
   await cdp("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await cdp("Emulation.setTouchEmulationEnabled", { enabled: true });
+  await cdp("Emulation.setUserAgentOverride", { userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36" });
   const evaluate = async (expr) => {
     const r = await cdp("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true });
     if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
@@ -146,7 +147,7 @@ shots.push(await A.shot("prod-01-landing"));
 await check("공개 URL 랜딩: 사주팔자PLAY, BETA, 개발 표시 없음", async () => {
   const t = await A.evaluate("document.body.innerText");
   assert(t.includes("내 팔자") && t.includes("BETA") && (await A.evaluate("document.getElementById('home').textContent")) === "사주팔자PLAY", "브랜드");
-  assert(await A.evaluate("document.getElementById('devflag').hidden"), "개발 환경 배지 숨김");
+  assert(await A.evaluate("document.getElementById('devflag') === null && !document.body.innerText.includes('개발 환경')"), "개발 환경 배지·문구 없음");
   assert((await A.evaluate("typeof window.__PALJA_DEV__")) === "undefined", "개발 hook 없음");
 });
 await check("입력 → 계산 애니메이션 → 결과 (독립형 승부사), 가로 넘침·개발자 용어 없음", async () => {
@@ -189,11 +190,11 @@ await check("배틀: 닉네임·전화번호 안내, 문자 앱 열기(번호 �
   assert((await A.evaluate("document.getElementById('battle-phone').value")) === "", "번호 지움");
   await A.evaluate(`(() => { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
     window.__copied = null; Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t) => { window.__copied = t; } }, configurable: true });
-    document.getElementById('share-btn').click(); return true; })()`);
+    document.getElementById('copy-btn').click(); return true; })()`);
   await sleep(500);
   const text = await A.evaluate("window.__copied");
-  battleLink = text.split("\n").pop();
-  assert(battleLink.startsWith(`${BASE}/#b=b1~`), `링크: ${battleLink}`);
+  battleLink = text.trim();
+  assert(/^https:\/\/palja-play\.vercel\.app\/\?b=[A-Za-z0-9_-]+$/.test(battleLink) && battleLink.startsWith(`${BASE}/?b=`), `링크: ${battleLink}`);
   assert(!/localhost|127\.0\.0\.1/.test(text), "localhost 없음");
   for (const bad of ["1990", "0515", "05-15", "14:20", "1420", "female", "9876"]) assert(!text.includes(bad), `링크/문구에 ${bad}`);
 });
@@ -205,7 +206,7 @@ await check("배틀 링크 열기 → 초대 배너", async () => {
   await B.open(battleLink);
   await sleep(500);
   const t = await B.evaluate("document.body.innerText");
-  assert(t.includes("배틀 신청이 도착했어요") && t.includes("QA봇의 캐릭터: 독립형 승부사") && t.includes("내 팔자로 도전하기"), t.slice(0, 120));
+  assert(t.includes("배틀 신청이 도착했어요") && t.includes("QA봇님의 배틀 신청이 도착했어요") && t.includes("도전자 캐릭터: 독립형 승부사") && t.includes("내 팔자로 도전하기"), t.slice(0, 120));
 });
 shots.push(await B.shot("prod-06-battle-invite"));
 await check("친구 입력 → 계산 → VS 결과(7라운드)", async () => {
