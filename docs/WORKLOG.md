@@ -293,3 +293,5 @@
 ### Phase 15 orders 테이블 (공개 키로 확인)
 - `/rest/v1/orders` 존재함 (SQL 실행됨). 공개(anon) 키로 SELECT·INSERT·UPDATE·DELETE 모두 `42501 permission denied` → 브라우저에서 주문 접근 불가 확인.
 - RLS 켜짐 여부·service_role 권한·authenticated 권한은 공개 키로 확인 불가 → 사용자가 SQL Editor 에서 읽기 전용 조회 실행 필요.
+- 사용자 SQL Editor 조회 결과(2026-10-05): RLS = true, anon·authenticated 권한 없음 ✔. 그러나 service_role 에 DELETE·TRUNCATE·REFERENCES·TRIGGER 도 있음 ✖ (Supabase 가 새 테이블에 자동으로 주는 기본 권한 — 기존 테스트는 "삭제 grant 문이 없다"만 검사해서 놓침).
+  → 테스트 강화(service_role 회수 후 부여), 원본 migration 수정, 이미 실행한 DB 용 보정 `20261005020000_orders_restrict_service_role.sql`(권한만, 데이터·구조 변경 없음). 사용자 Run 필요.

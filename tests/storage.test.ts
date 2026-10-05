@@ -68,9 +68,20 @@ test("SQL orders: RLS 켜짐, 브라우저 역할 권한 회수·정책 없음, 
   assert.ok(!/grant[^;]*on public\.orders to (anon|authenticated|public)/i.test(orders));
   assert.match(orders, /grant select, insert, update on public\.orders to service_role;/);
   assert.ok(!/grant[^;]*delete[^;]*on public\.orders/i.test(orders), "삭제 권한 없음");
+  // 2026-10-05 실제 DB 조회로 발견: Supabase 는 새 테이블에 service_role 기본 권한(DELETE·TRUNCATE 등)을 자동으로 준다.
+  // "삭제 grant 가 없다" 만으로는 부족 → service_role 권한을 먼저 모두 회수한 뒤 필요한 것만 주는지 검사.
+  const revokeAt = orders.search(/revoke all on public\.orders from [^;]*\bservice_role\b[^;]*;/);
+  assert.ok(revokeAt >= 0 && revokeAt < orders.search(/grant select, insert, update on public\.orders to service_role;/), "service_role 기본 권한 회수 후 부여");
   assert.ok(orders.includes("revoke all on function public.orders_touch() from public, anon, authenticated"));
   assert.ok(orders.includes("set search_path = ''"));
   assert.ok(!/card_number|card_no|cvc|birth|gender|phone/i.test(orders), "민감정보 컬럼 없음");
+});
+
+test("SQL orders 권한 보정 migration: 이미 만든 DB 에서 service_role 의 삭제·비우기 등 권한 회수", () => {
+  const fix = readFileSync(`${dir}/20261005020000_orders_restrict_service_role.sql`, "utf8").replace(/^--.*$/gm, "");
+  assert.match(fix, /revoke all on public\.orders from public, anon, authenticated, service_role;/);
+  assert.match(fix, /grant select, insert, update on public\.orders to service_role;/);
+  assert.ok(!/\b(drop|delete from|truncate table|alter table)\b/i.test(fix), "데이터·구조를 바꾸지 않음 (권한만)");
 });
 
 test("SQL orders 컬럼 ↔ 서버 코드(NewOrder·OrderPatch) 일치", () => {

@@ -61,6 +61,8 @@ create trigger orders_touch before update on public.orders for each row execute 
 
 -- 권한
 alter table public.orders enable row level security;
-revoke all on public.orders from public, anon, authenticated;     -- 브라우저 역할: 권한 없음
+-- Supabase 는 새 테이블에 service_role 기본 권한(DELETE·TRUNCATE 등)을 자동으로 주므로 service_role 도 먼저 모두 회수한다.
+-- (이미 이 파일을 실행한 DB 는 20261005020000_orders_restrict_service_role.sql 로 보정)
+revoke all on public.orders from public, anon, authenticated, service_role;  -- 브라우저 역할: 권한 없음
 grant select, insert, update on public.orders to service_role;    -- 서버(Secret Key): 조회·생성·상태 변경 (삭제 없음)
 -- anon/authenticated 용 정책을 만들지 않으므로 SELECT/INSERT/UPDATE/DELETE 모두 불가.
