@@ -6,7 +6,7 @@
   "outputDirectory": "dist",
   "git": {
     "deploymentEnabled": {
-      "main": false
+      "main": true
     }
   },
   "headers": [

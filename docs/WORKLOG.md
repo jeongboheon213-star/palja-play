@@ -214,3 +214,12 @@
   - 다른 방법(카톡 공유·링크 복사)도 유지.
 - 테스트: 단위 +3 (번호 검사, 문자 링크, 번호가 저장/전송 코드에 쓰이지 않음) → 192. E2E +2 (문자 보내기 흐름, 모든 인터넷 요청에 생년월일·시간·성별·전화번호·기둥이 없음) → 35/35.
   - 네트워크 검사 정규식이 셸 이스케이프로 깨져 0건만 검사하고 통과한 것을 발견 → 수정하고 "검사한 요청 수 > 5" 확인을 추가해 헛통과 방지.
+
+## 2026-10-05 — A. 무료 Beta Production 배포 시작
+
+배포 전 확인
+- git: main 깨끗, origin/main 과 동일 (4098024).
+- 비밀 키: 전체 git 히스토리에 실제 secret/service_role 키·JWT·토스 키·DB 비밀번호 없음 (`sb_secret_` 6건은 안전장치 코드·문서·가짜 테스트 값). `.env.local` 미추적, publishable 키도 커밋되지 않음.
+- Supabase: 공개 키로 SELECT 401, UPDATE/DELETE 42501(권한 없음), UPSERT 401. 카탈로그 조회 결과 beta_feedback·beta_events 모두 anon=INSERT 만, authenticated 권한 없음, RLS ON, 정책은 INSERT(anon) 하나씩.
+- 테스트: 단위 192/192, E2E 35/35, production 번들 검사(개발 코드·비밀 키·debug 없음).
+- `vercel.json` main 자동 배포 다시 켬 → main push 로 Production 배포.
