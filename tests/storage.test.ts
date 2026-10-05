@@ -50,8 +50,34 @@ test("SQL: RLS 켜짐, anon 은 INSERT 만 (SELECT/UPDATE/DELETE 정책 없음),
     assert.ok(sql.includes(`grant insert on public.${t} to anon`), t);
   }
   assert.ok(!/for (select|update|delete|all)/i.test(sql));
-  assert.ok(!/grant (select|update|delete|all)/i.test(sql));
+  // 2026-10-05: orders 에 서버 역할(service_role) 권한이 추가되어, "누구에게" 주는지까지 검사하도록 정밀화.
+  // 브라우저 역할(anon/authenticated/public)에는 INSERT 외 어떤 grant 도 없어야 한다 (원래 의도 유지).
+  const grants = sql.replace(/^--.*$/gm, "").match(/grant [^;]+;/gi) ?? [];
+  for (const g of grants) {
+    if (/\bto\s+(anon|authenticated|public)\b/i.test(g)) assert.match(g, /^grant insert on public\.beta_(feedback|events) to anon;$/i, g);
+    else assert.match(g, /to service_role;$/i, g);
+  }
   assert.ok(!/birth|gender|phone|email/i.test(sql.replace(/^--.*$/gm, "")));
+});
+
+test("SQL orders: RLS 켜짐, 브라우저 역할 권한 회수·정책 없음, 서버 역할은 삭제 권한 없음, 함수 외부 호출 차단", () => {
+  const orders = readFileSync(`${dir}/20261005010000_orders.sql`, "utf8").replace(/^--.*$/gm, "");
+  assert.ok(orders.includes("alter table public.orders enable row level security"));
+  assert.ok(orders.includes("revoke all on public.orders from public, anon, authenticated"));
+  assert.ok(!/create policy[^;]*on public\.orders/i.test(orders), "orders 에 브라우저용 정책 없음");
+  assert.ok(!/grant[^;]*on public\.orders to (anon|authenticated|public)/i.test(orders));
+  assert.match(orders, /grant select, insert, update on public\.orders to service_role;/);
+  assert.ok(!/grant[^;]*delete[^;]*on public\.orders/i.test(orders), "삭제 권한 없음");
+  assert.ok(orders.includes("revoke all on function public.orders_touch() from public, anon, authenticated"));
+  assert.ok(orders.includes("set search_path = ''"));
+  assert.ok(!/card_number|card_no|cvc|birth|gender|phone/i.test(orders), "민감정보 컬럼 없음");
+});
+
+test("SQL orders 컬럼 ↔ 서버 코드(NewOrder·OrderPatch) 일치", () => {
+  const cols = columnsOf("orders");
+  for (const c of ["order_id", "result_id", "product_id", "amount", "currency", "status", "chart_key", "purchase_code_hash", "toss_mode", "source", "payment_key", "method", "failure_code", "failure_message", "approved_at", "refund_reason"]) {
+    assert.ok(cols.includes(c), `orders.${c} 없음`);
+  }
 });
 
 test("REST 요청: return=minimal, anon 키 헤더, 테이블 경로", () => {

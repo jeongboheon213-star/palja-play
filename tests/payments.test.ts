@@ -368,7 +368,8 @@ test("주의 방향 Signal 목록이 Signal 규칙의 polarity 와 일치", () =
 // ── 설정 / 비밀 키 ────────────────────────────────────────────
 
 test("결제 설정: 기본 off, TEST 는 test_sk 만, LIVE 는 별도 승인 플래그 없으면 잠김", () => {
-  const base = { SUPABASE_URL: "https://abc.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "srk" };
+  // 2026-10-05 사용자 요청: 서버는 새 Secret Key(SUPABASE_SECRET_KEY, sb_secret_…) 사용
+  const base = { SUPABASE_URL: "https://abc.supabase.co", SUPABASE_SECRET_KEY: "sb_secret_dummy" };
   assert.equal(paymentsConfig({}).ok, false);
   assert.equal(paymentsConfig({ ...base, PALJA_PAYMENTS_MODE: "test", TOSS_SECRET_KEY: "live_sk_x" }).ok, false, "TEST 모드에 LIVE 키 거부");
   assert.ok(paymentsConfig({ ...base, PALJA_PAYMENTS_MODE: "test", TOSS_SECRET_KEY: "test_sk_x" }).ok);
@@ -402,4 +403,29 @@ test("chart key: 순서가 달라도 같고, 상품이 다르면 다르다", () 
   const b = chartKeyFor("premium_money", [...ids].reverse(), sha256)!;
   assert.equal(a.key, b.key);
   assert.equal(chartKeyFor("premium_love", ids, sha256), null, "영역 밖");
+});
+
+test("Supabase 서버 키: 새 Secret Key(SUPABASE_SECRET_KEY) 우선, 예전 service_role 은 대체용, 공개 키는 거부", async () => {
+  const { supabaseServerKey } = await import("../api-lib/env");
+  const jwt = (role: string) => `h.${Buffer.from(JSON.stringify({ role })).toString("base64url")}.s`;
+  assert.deepEqual(supabaseServerKey({ SUPABASE_SECRET_KEY: "sb_secret_new", SUPABASE_SERVICE_ROLE_KEY: jwt("service_role") }), { name: "SUPABASE_SECRET_KEY", key: "sb_secret_new" });
+  assert.equal(supabaseServerKey({ SUPABASE_SERVICE_ROLE_KEY: jwt("service_role") })?.name, "SUPABASE_SERVICE_ROLE_KEY");
+  assert.equal(supabaseServerKey({ SUPABASE_SECRET_KEY: "sb_publishable_abc" }), null, "공개 키 거부");
+  assert.equal(supabaseServerKey({ SUPABASE_SERVICE_ROLE_KEY: jwt("anon") }), null, "anon JWT 거부");
+  assert.equal(supabaseServerKey({}), null);
+  const base = { PALJA_PAYMENTS_MODE: "test", TOSS_SECRET_KEY: "test_sk_x", SUPABASE_URL: "https://abc.supabase.co" };
+  assert.equal(paymentsConfig({ ...base, SUPABASE_SECRET_KEY: "sb_publishable_abc" }).ok, false, "공개 키로는 결제 서버 동작 안 함");
+  assert.ok(paymentsConfig({ ...base, SUPABASE_SECRET_KEY: "sb_secret_abc" }).ok);
+});
+
+test("새 Secret Key 는 REST 요청에 apikey 헤더로만 보낸다 (Bearer 없음)", async () => {
+  const { createSupabaseOrderRepo } = await import("../src/server/payments/adapters");
+  const seen: Record<string, string>[] = [];
+  const fakeFetch = (async (_url: string, init: RequestInit) => {
+    seen.push(init.headers as Record<string, string>);
+    return new Response("[]", { status: 200 });
+  }) as unknown as typeof fetch;
+  await createSupabaseOrderRepo("https://abc.supabase.co", "sb_secret_abc", fakeFetch).get("sp-order-1");
+  assert.equal(seen[0]!.apikey, "sb_secret_abc");
+  assert.equal(seen[0]!.Authorization, undefined);
 });

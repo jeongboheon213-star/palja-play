@@ -32,7 +32,8 @@ Browser ──POST /api/premium/report {purchaseCode, productId, signalIds}─�
 |---|---|---|
 | `PALJA_TOSS_CLIENT_KEY` (test_ck_…) | 빌드 시 브라우저 번들 | 공개용. `_sk_` 가 들어오면 빌드 중단 |
 | `TOSS_SECRET_KEY` (test_sk_…) | Vercel 서버 환경 변수 | 브라우저·GitHub 금지. 빌드 스크립트는 읽지 않음 |
-| `SUPABASE_SERVICE_ROLE_KEY` | Vercel 서버 환경 변수 | 브라우저·GitHub 금지 |
+| `SUPABASE_SECRET_KEY` (sb_secret_…) | Vercel 서버 환경 변수 | 브라우저·GitHub·채팅 금지. 예전 `SUPABASE_SERVICE_ROLE_KEY` 는 대체용. 공개 키가 들어오면 서버가 쓰지 않음 |
+| Supabase Publishable Key (sb_publishable_…) | 브라우저 번들 | 공개용 (beta_feedback/beta_events INSERT 만) |
 | `PALJA_PAYMENTS_MODE` | off / test / live | 기본 off |
 | `PALJA_ALLOW_LIVE_PAYMENTS` | yes 일 때만 live 허용 | 사용자 최종 승인 전 설정 금지 |
 

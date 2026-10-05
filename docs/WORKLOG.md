@@ -246,3 +246,13 @@
 - 문서: `docs/PAYMENT_DESIGN.md`, `docs/PAID_LAUNCH_CHECKLIST.md` (법률 검토 미완료 명시).
 - 남은 일(사용자 단계 필요): orders SQL 실행, 토스 TEST 키 발급·입력, Supabase service_role 키 입력 → 실제 TEST 결제.
 - Vercel 배포 후 함수 4개가 FUNCTION_INVOCATION_FAILED. 원인: Node ESM 이 확장자 없는 import(`../src/server/...`)를 찾지 못함(로컬 재현: ERR_MODULE_NOT_FOUND). 해결: 소스를 `api-src/` 로 옮기고 `scripts/build-api.mjs` 로 함수별 단일 파일 `api/*.js` 생성·커밋. `npm run check` 에 생성 파일 최신 여부 검사 추가.
+
+## 2026-10-05 — Supabase 새 Secret Key 적용 + orders SQL 최종 검토
+
+- 사용자 요청: 브라우저 = Publishable Key, 서버 함수 = 새 Secret Key(`sb_secret_…`).
+  - `api-lib/env.ts` `supabaseServerKey()`: `SUPABASE_SECRET_KEY` 우선, 없으면 예전 `SUPABASE_SERVICE_ROLE_KEY`(JWT role=service_role). 공개 키(sb_publishable_, anon JWT)는 거부 → 결제 서버 동작 안 함.
+  - Secret Key 는 REST 요청에 `apikey` 헤더로만 (Bearer 없음). 빌드 스크립트는 이 값을 읽지 않음(브라우저 번들 불가).
+  - 문서·예시(.env.example, local-server, PAYMENT_DESIGN) 변수명 갱신.
+- orders SQL 최종 검토 후 수정: 트리거 함수 `set search_path = ''`(Supabase 보안 경고 대응), 트리거 함수 외부 호출 권한 회수, `service_role` 에 select/insert/update 명시(삭제 없음), 브라우저 역할(public/anon/authenticated) 권한 전부 회수·정책 없음, FAILED 는 cancelled_at 을 찍지 않도록 정리. 재실행 안전(if not exists / or replace / drop if exists).
+- 테스트: 키 선택·헤더 2개, orders SQL 권한·컬럼 2개 추가 → 221/221.
+  - `storage.test.ts` 의 "grant select 금지" 검사를 "브라우저 역할에는 beta 표 INSERT 외 grant 금지, 그 밖의 grant 는 service_role 만"으로 정밀화 (서버 역할 권한이 생겨서. 원래 의도 유지).

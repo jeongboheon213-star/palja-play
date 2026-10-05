@@ -7,7 +7,7 @@
 //   PALJA_TOSS_CLIENT_KEY=test_ck_…        (브라우저용, 빌드에 들어감)
 //   TOSS_SECRET_KEY=test_sk_…              (서버 전용)
 //   SUPABASE_URL=https://xxxx.supabase.co
-//   SUPABASE_SERVICE_ROLE_KEY=…            (서버 전용)
+//   SUPABASE_SECRET_KEY=sb_secret_…        (서버 전용, Supabase 새 Secret Key)
 // 먼저 `node scripts/build.mjs --dev` 로 화면을 빌드한다 (같은 .env.local 을 읽음).
 import { createServer } from "node:http";
 import { existsSync, readFileSync } from "node:fs";

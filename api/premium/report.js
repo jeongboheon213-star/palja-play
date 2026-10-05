@@ -743,12 +743,29 @@ function newPurchaseCode() {
 function sha256(text) {
   return createHash("sha256").update(text, "utf8").digest("hex");
 }
+function supabaseServerKey(env) {
+  const isSecret = (k) => {
+    if (k.startsWith("sb_secret_")) return true;
+    if (k.startsWith("sb_")) return false;
+    try {
+      const payload = JSON.parse(Buffer.from((k.split(".")[1] ?? "").replace(/-/g, "+").replace(/_/g, "/"), "base64").toString());
+      return payload.role === "service_role";
+    } catch {
+      return false;
+    }
+  };
+  for (const name of ["SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"]) {
+    const key = env[name];
+    if (key && isSecret(key)) return { name, key };
+  }
+  return null;
+}
 function paymentsConfig(env = process.env) {
   const mode = env.PALJA_PAYMENTS_MODE ?? "off";
   if (mode !== "test" && mode !== "live") return { ok: false, status: 503, code: "PAYMENTS_DISABLED", message: "사주팔자PLAY Beta에서 준비 중인 기능입니다." };
   const secret = env.TOSS_SECRET_KEY ?? "";
   const supaUrl = env.SUPABASE_URL ?? "";
-  const supaKey = env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const supaKey = supabaseServerKey(env)?.key ?? "";
   if (mode === "test" && !/^test_(g?sk)_/.test(secret)) return { ok: false, status: 503, code: "PAYMENTS_MISCONFIGURED", message: "결제 설정을 확인하는 중이에요." };
   if (mode === "live") {
     if (env.PALJA_ALLOW_LIVE_PAYMENTS !== "yes" || !/^live_(g?sk)_/.test(secret)) return { ok: false, status: 503, code: "LIVE_PAYMENTS_LOCKED", message: "사주팔자PLAY Beta에서 준비 중인 기능입니다." };
