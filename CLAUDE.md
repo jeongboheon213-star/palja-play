@@ -34,8 +34,11 @@ Validation → CalendarProvider → TimeNormalizer → SolarTermProvider → Saj
 - Phase 5 완료: FREE 결과(`src/lib/interpretation/free.ts`), 모든 문장 Signal 근거, 반전은 반대 polarity 있을 때만.
 - 테스트·tsc 통과 (개수는 docs/WORKLOG.md). 환경 비교: `tests/tools/env-hash*.ts`.
 
-## 다음: Phase 3C 부터 연속 진행 (docs/BETA_DIRECTION.md 승인됨, 3C→3D→4→5→6 후 통합 보고)
-네 기둥을 각각 독립 함수로(calculateYearPillar/MonthPillar/DayPillar/HourPillar). 연/월주는 SolarTermProvider 결과만 소비한다(절기 계산 코드를 넣지 않는다). 각 결과에 stem/branch/ganji/confidence/evidence/policy 의존성/verification 포함. 일주는 기존 독립 공식과 1930-01-01~2026-10-04 전체 재대조(verified-internally 초과 금지). 이후 3D(십성/12운성/합충형, 해석과 분리), 그 뒤 Signals·점수·FREE/PREMIUM·UI.
+- Phase 6 완료: PREMIUM 미리보기(WHY/HOW 한 줄 + WHEN 준비 중), 3종 리포트 4,900원(Beta 테스트 가격, 결제 없음), 이벤트 이름·sink 구조(`src/lib/analytics/events.ts`). 진입점 `engine.computeBetaResult()`.
+- 3C~6 통합 보고 완료 → **사용자 승인 후** Phase 7(UI)·8(피드백/분석) 진행.
+
+## 다음: Phase 7 Web UI + Phase 8 Feedback/Analytics (승인 대기)
+`팔자PLAY 미리보기.html`(작업 폴더 상위) 디자인 유지(dark purple/gold/jade, 모바일 우선, 카드, 계산 애니메이션, 캐릭터 카드, 능력치, premium lock). Mock 계산 제거하고 `computeBetaResult` 연결. "팔자PLAY Beta" 표시, 결과 하단 `BETA_DISCLAIMER`. 피드백(1~5점, 잘 맞은/안 맞은 영역, 자유 의견)은 생년월일 대신 resultId + versions 로 저장. 이벤트 9종. 외부 분석 서비스 가짜 연결 금지.
 
 ## 명령
 - `npm install` 후 `npm run check` (typecheck + test). Node.js LTS 필요 (Windows 설치 경로 `C:/Program Files/nodejs`, Git Bash 에서는 PATH 에 추가 필요).

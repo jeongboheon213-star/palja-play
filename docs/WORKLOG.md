@@ -100,3 +100,19 @@
 
 테스트 변경 기록
 - `policies.test.ts` INTERPRETATION_VERSION 기대값 0.2.0-beta 로 갱신.
+
+## 2026-10-05 — Phase 6: PREMIUM Preview
+
+만든 것
+- `src/data/products.ts`: 재물 심층 리포트 / 연애 심층 리포트 / 직업·사업 심층 리포트, 각 4,900원. `betaTestPrice: true`(Beta 테스트 값), `paymentEnabled: false`. 버튼 문구 `PREMIUM_COMING_SOON_MESSAGE` = "팔자PLAY Beta에서 준비 중인 기능입니다." 상품별 클릭 이벤트 이름(premium_money_click / premium_love_click / premium_career_click).
+- `src/lib/interpretation/premium.ts` + `copy/premiumCopy.ts`: FREE=WHAT 와 구분된 PREMIUM 구조. WHY(왜 이런 패턴인가)·HOW(어떻게 활용할까) 각 1줄 미리보기 + 근거 요약 + 잠긴 항목 수(실제 근거 Signal 수 − 1). **WHEN 은 대운·세운 미구현이라 항상 "준비 중"** (가짜 시기 없음).
+- `src/lib/analytics/events.ts`: Beta 이벤트 9종 이름, 이벤트 형식(sessionId·resultId·props), 개인정보로 보이는 키 제거, 개발용 메모리 sink. 외부 분석 서비스 연결 없음 (Phase 8 에서 결정).
+- `engine.computeBetaResult()`: 입력 → SajuData → Signals → FREE + PREMIUM 미리보기 (UI 진입점).
+
+테스트 (+9 → 총 162)
+- 가격·Beta 표시·결제 비활성·준비 중 문구, 이벤트 이름, 개인정보 키 제거, WHY/HOW/WHEN 구조, 스윕(WHEN 에 연도·나이·대운 숫자 없음, 미리보기 근거 존재·영역 일치·잠긴 수 정확), 4개 영역 모든 Signal 에 WHY/HOW 문구, 금지 표현, 오류 경로(DST gap/overlap, 일주 uncertain), 결정론.
+- 환경 해시 `tests/tools/env-hash-result.ts`(FREE+PREMIUM 전체): TZ=UTC / America/New_York / Asia/Seoul 모두 `cases=13516 hash=874ad2d1`.
+- 아키텍처 금지어 테스트가 엔진 주석의 "검증 완료"(입력 검사 의미)를 잡아내 문구 수정.
+
+테스트 변경 기록
+- `policies.test.ts` 의 PRODUCTS 테스트: Phase 2 단일 `premium_report`(모의 결제) → Beta 3종 리포트(결제 없음) 구조로 교체.

@@ -7,3 +7,5 @@ export * from "./notices";
 export * from "./free";
 export { CHARACTERS } from "./copy/characters";
 export { SIGNAL_COPY } from "./copy/signalCopy";
+export * from "./premium";
+export { PREMIUM_COPY, WHEN_PREPARING } from "./copy/premiumCopy";

@@ -44,14 +44,22 @@ test("버전 상수", () => {
   assert.equal(INTERPRETATION_VERSION, "0.2.0-beta");
 });
 
+// Phase 6: 단일 premium_report(모의 결제) → Beta 3종 리포트(결제 없음, Beta 테스트 가격)로 교체 (docs/WORKLOG.md).
 test("PRODUCTS", () => {
   assert.equal(getProduct("free_result").priceKrw, 0);
-  assert.equal(getProduct("free_result").paymentMode, "none");
-  assert.equal(PRODUCTS.premium_report.paymentMode, "mock");
-  assert.equal(PRODUCTS.premium_report.isPlaceholderPrice, true);
+  assert.equal(getProduct("free_result").paymentEnabled, false);
   assert.deepEqual([...PRODUCTS.free_result.axes], ["what"]);
-  assert.deepEqual([...PRODUCTS.premium_report.axes], ["why", "how", "when"]);
-  assert.throws(() => { (PRODUCTS.premium_report as { priceKrw: number }).priceKrw = 1; });
+  for (const id of ["premium_money", "premium_love", "premium_career"] as const) {
+    const p = PRODUCTS[id];
+    assert.equal(p.priceKrw, 4900, id);
+    assert.equal(p.betaTestPrice, true, id);
+    assert.equal(p.paymentEnabled, false, id);
+    assert.deepEqual([...p.axes], ["why", "how", "when"], id);
+  }
+  assert.equal(PRODUCTS.premium_money.name, "재물 심층 리포트");
+  assert.equal(PRODUCTS.premium_love.name, "연애 심층 리포트");
+  assert.equal(PRODUCTS.premium_career.name, "직업/사업 심층 리포트");
+  assert.throws(() => { (PRODUCTS.premium_money as { priceKrw: number }).priceKrw = 1; });
 });
 
 test("isoDate 유틸", () => {
