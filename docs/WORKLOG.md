@@ -171,3 +171,13 @@
   - 사용자 결정에 따라 `vercel.json` 추가: install `npm ci`, build `npm run build`, output `dist`, **main 자동 배포 끔**(`git.deploymentEnabled.main=false`, Phase 9 QA 승인 후 다시 켬), 기본 보안 헤더.
 - Supabase: 코드·설정에 연결 없음. 사용자에게 Project URL + anon key 를 받아 연결 예정 (service_role 키는 받지 않음).
 - 내장 브라우저는 Vercel/Supabase 에 로그인되어 있지 않아 대시보드는 확인하지 못함 (비밀번호 입력은 하지 않음).
+
+## 2026-10-05 — Supabase 연결 준비 (키 수령 전)
+
+- `supabase/migrations/20261005000000_beta_feedback_events.sql`: `beta_feedback`, `beta_events` 테이블. 개인정보 컬럼 없음, 값 CHECK 제약, RLS 켜고 anon 은 INSERT 만(읽기·수정·삭제 불가).
+- `src/lib/storage/supabaseRows.ts`: 피드백/이벤트 → 테이블 행 변환 + REST INSERT 요청(순수 함수).
+- `web/src/supabase.ts`: Supabase 피드백 저장소(`kind: remote`) + 이벤트 sink(keepalive, 실패해도 흐름 유지).
+- 설정: `PALJA_SUPABASE_URL` / `PALJA_SUPABASE_ANON_KEY` 환경 변수(로컬은 `.env.local`, Vercel 은 Environment Variables). 둘 다 있으면 피드백·이벤트를 Supabase 로, 없으면 기존처럼 dev=localStorage / prod=미설정. 행에 `source`(development/production) 기록.
+- 빌드 안전장치: service_role/secret 키가 들어오면 빌드 중단 (확인함).
+- `.gitattributes` 로 줄바꿈을 LF 로 고정 (Windows 에서 stash 후 CRLF 로 바뀌어 편집이 깨지는 문제). `docs/BETA_DIRECTION.md` 는 줄바꿈만 LF 로 정규화(내용 동일).
+- 테스트 +4 (행 ↔ SQL 컬럼 일치, 이벤트 이름 ↔ SQL CHECK 일치, RLS/권한, REST 요청) → 180 통과. E2E 28/28 통과.

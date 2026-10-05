@@ -432,7 +432,9 @@ function renderFeedback(c: Current): HTMLElement {
     comment,
     submit,
     h("p", { class: "mute small", style: "margin-top:8px" }, "생년월일·출생 시간은 피드백과 함께 저장하지 않아요."),
-    rt.feedback.kind === "local-dev"
+    rt.feedback.kind === "remote" && APP_CONFIG.isDev
+      ? h("p", { class: "devnote" }, "개발 환경: 피드백이 Supabase 에 개발용(source=development)으로 저장돼요.")
+      : rt.feedback.kind === "local-dev"
       ? h("p", { class: "devnote" }, "Beta 개발 환경: 피드백은 이 브라우저에만 임시 저장돼요. 아직 운영 서버로 전송되지 않아요.")
       : rt.feedback.kind === "unconfigured"
         ? h("p", { class: "devnote" }, "피드백 저장소를 준비 중이에요. 지금은 피드백이 저장되지 않아요.")

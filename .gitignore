@@ -6,3 +6,4 @@ dist/
 .DS_Store
 dist-dev/
 e2e-artifacts/
+!.env.example

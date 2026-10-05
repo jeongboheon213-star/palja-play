@@ -6,6 +6,7 @@
 import { createMemorySink, createTracker, type AnalyticsEvent, type AnalyticsSink, type Track } from "../../src/lib/analytics/events";
 import { createUnconfiguredFeedbackRepository, type FeedbackRecord, type FeedbackRepository } from "../../src/lib/feedback/feedback";
 import { APP_CONFIG } from "./config";
+import { createSupabaseEventSink, createSupabaseFeedbackRepository } from "./supabase";
 
 /** 레코드 식별용 UUID v4 (계산과 무관) */
 export function randomId(): string {
@@ -68,7 +69,13 @@ export function createRuntime(): Runtime {
   const sinks: AnalyticsSink[] = [];
   if (APP_CONFIG.analytics.includes("memory")) sinks.push(memory);
   if (APP_CONFIG.analytics.includes("console")) sinks.push(consoleSink());
+  if (APP_CONFIG.supabase && APP_CONFIG.analytics.includes("supabase")) sinks.push(createSupabaseEventSink(APP_CONFIG.supabase));
   const track = createTracker(sinks, { sessionId, now: nowIso });
-  const feedback = APP_CONFIG.feedbackStorage === "local-dev" ? createLocalDevFeedbackRepository() : createUnconfiguredFeedbackRepository();
+  const feedback =
+    APP_CONFIG.feedbackStorage === "supabase" && APP_CONFIG.supabase
+      ? createSupabaseFeedbackRepository(APP_CONFIG.supabase)
+      : APP_CONFIG.feedbackStorage === "local-dev"
+        ? createLocalDevFeedbackRepository()
+        : createUnconfiguredFeedbackRepository();
   return { track, memoryEvents: memory.events, feedback, sessionId };
 }
