@@ -1,0 +1,17 @@
+{
+  "name": "palja-play",
+  "version": "0.1.0-alpha",
+  "private": true,
+  "type": "module",
+  "description": "팔자PLAY Alpha v0.1 - 계산/데이터/해석 계층 (순수 TypeScript)",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test tests/*.test.ts",
+    "check": "npm run typecheck && npm run test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.0"
+  }
+}
