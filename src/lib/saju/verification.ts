@@ -44,7 +44,7 @@ export type VerificationStatus = Readonly<Record<VerificationItemId, Verificatio
 export const VERIFICATION_STATUS: VerificationStatus = Object.freeze({
   dayPillar: Object.freeze({
     level: "verified-internally",
-    note: "1930-01-01~2026-10-04 (35,341일) 두 독립 공식 간 일치만 확인. 외부 기준 대조 아님.",
+    note: "1930-01-01~2026-10-04 (35,341일) 두 독립 공식(JDN 공식 / 달력 일수 세기) 간 일치만 확인 (Phase 3C 재확인). 외부 기준 대조 아님.",
   }),
   solarTerms: Object.freeze({
     level: "not-verified",
@@ -52,15 +52,15 @@ export const VERIFICATION_STATUS: VerificationStatus = Object.freeze({
   }),
   monthPillarSolarTerm: Object.freeze({
     level: "not-verified",
-    note: "절입 시각은 Alpha 자체 계산 예정이며 KASI 등 외부 자료와 대조하지 않음.",
+    note: "Phase 3C 구현: AlphaSolarTermProvider 의 절입 순간을 그대로 사용. 절입 시각은 KASI 등 외부 자료와 대조하지 않음.",
   }),
   yearPillar: Object.freeze({
     level: "not-verified",
-    note: "입춘 기준 연주는 절입 시각 의존. 미검증.",
+    note: "Phase 3C 구현: 제공자의 입춘 순간 기준. 절입 시각 의존(not-verified). 미검증.",
   }),
   hourPillar: Object.freeze({
     level: "not-verified",
-    note: "시간대 보정·자시 정책 의존. 미검증.",
+    note: "Phase 3C 구현: 2시간 시지 + 오서둔. 23시대 일간 기준은 자시 정책 의존. 시간대 보정·자시 정책 미검증.",
   }),
   historicalTimeOffsets: Object.freeze({
     level: "not-verified",

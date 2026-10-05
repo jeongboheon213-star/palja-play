@@ -13,3 +13,6 @@ Beta 출시(Track A)를 기다리게 하지 않고 배포 후 계속 진행한�
 - 12운성 규칙 검증
 
 AlphaSolarTermProvider 는 계속 `verificationStatus: not-verified`.
+- (Phase 3C) Alpha 입춘/절입 순간과 KASI 공표 시각 실제 대조. 예: Alpha 2024 입춘 KST 17:20 — 공표값과 몇 분 차이인지 실제 자료로 확인 (현재 확인 안 함)
+- (Phase 3C) midnight 정책의 23시대 시주(다음 날 일간 기준 자시) 규칙 전문가 검토
+- (Phase 3C) 일주 기준점(1900-01-01 갑술 / 2000-01-01 무오) 외부 만세력 대조 → 통과 시에만 verified-externally

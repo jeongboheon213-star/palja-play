@@ -33,8 +33,23 @@ test("계층 의존 방향: interpretation은 saju 타입만 의존, validation�
   }
 });
 
-test("기둥 계산기/사주 계산기 파일은 아직 없다 (Phase 3C 이전)", () => {
-  for (const f of files) assert.ok(!/pillars|calculator\.ts/i.test(f), f);
+// Phase 3C 에서 "기둥 계산기 파일은 아직 없다" 관문 테스트를 아래 규칙으로 교체했다 (docs/WORKLOG.md).
+test("기둥 계산은 lib/saju/pillars 에만 있고, 네 기둥은 각각 독립 함수다", () => {
+  const pillarFiles = files.filter((f) => /pillar/i.test(f));
+  assert.ok(pillarFiles.length > 0);
+  for (const f of pillarFiles) assert.ok(f.startsWith("lib/saju/pillars/"), f);
+  for (const name of ["Year", "Month", "Day", "Hour"]) {
+    const owners = src.filter((s) => new RegExp(`export function calculate${name}Pillar\\(`).test(s.text));
+    assert.equal(owners.length, 1, name);
+    assert.equal(owners[0]!.f, `lib/saju/pillars/${name.toLowerCase()}Pillar.ts`);
+  }
+});
+
+test("기둥 계산은 절기를 다시 계산하지 않는다: 천문 모델·절기 탐색을 쓰지 않고 절입 시각을 적지 않는다", () => {
+  for (const { f, text } of src.filter((s) => s.f.startsWith("lib/saju/pillars/"))) {
+    assert.ok(!/astronomy|apparentSolarLongitude|alphaSolarTermProvider|\.locate\(|termsInRange\(/.test(text), f);
+    assert.ok(!/"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(text), `${f}: 절입 시각 리터럴`);
+  }
 });
 
 test("절기 계층은 연주/월주/일주/시주 계산을 하지 않는다", () => {
