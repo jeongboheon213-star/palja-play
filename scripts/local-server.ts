@@ -28,6 +28,7 @@ const routes: Record<string, () => Promise<{ POST: (r: Request) => Promise<Respo
   "/api/payments/confirm": () => import("../api-src/payments/confirm"),
   "/api/payments/fail": () => import("../api-src/payments/fail"),
   "/api/premium/report": () => import("../api-src/premium/report"),
+  "/api/admin/stats": () => import("../api-src/admin/stats"),
 };
 const ROOT = "dist-dev";
 const MIME: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8" };

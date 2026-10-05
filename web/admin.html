@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>운영자 통계 · 사주팔자PLAY</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#171936;--bg2:#20234a;--bg3:#2a2e5c;--ink:#EEEBFA;--mute:#A9A8C9;--line:#3a3e72;--gold:#FFB347;--jade:#4ED1B0;--rose:#FF8FA3;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 'Noto Sans KR',system-ui,-apple-system,sans-serif;overflow-x:hidden}
+.wrap{max-width:1120px;margin:0 auto;padding:20px 16px 64px}
+h1,h2,.d{font-family:'Do Hyeon','Noto Sans KR',sans-serif;font-weight:400}
+h1{font-size:28px;margin:0}
+h2{font-size:21px;margin:0 0 4px}
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.top .sp{flex:1}
+.logo b{color:var(--gold);font-weight:400}
+.mute{color:var(--mute)}
+.small{font-size:12.5px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:16px}
+.hint{color:var(--mute);font-size:13px;margin:0 0 12px}
+.grid{display:grid;gap:12px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.two{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+.kpi .v{font-family:'Do Hyeon',sans-serif;font-size:34px;line-height:1.1;margin-top:4px}
+.kpi .v small{font-size:16px;color:var(--mute)}
+.kpi .l{color:var(--mute);font-size:13px}
+section{margin-top:16px}
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);padding:8px 12px;font:500 14px 'Noto Sans KR',sans-serif;cursor:pointer;min-height:38px}
+.seg button.on{background:var(--gold);color:#171936;font-weight:700}
+.btn{border:0;border-radius:12px;padding:9px 14px;font:700 14px 'Noto Sans KR',sans-serif;background:var(--gold);color:#171936;cursor:pointer;min-height:38px}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:wait}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--jade);outline-offset:2px}
+input[type=password],input[type=search]{width:100%;min-height:46px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:500 15px 'Noto Sans KR',sans-serif}
+.login{max-width:440px;margin:60px auto}
+.bars{display:grid;gap:7px}
+.bar{display:grid;grid-template-columns:minmax(90px,38%) 1fr auto;gap:10px;align-items:center;font-size:14px}
+.bar .t{height:12px;background:var(--bg3);border-radius:99px;overflow:hidden}
+.bar .f{height:100%;background:var(--gold);border-radius:99px}
+.bar.j .f{background:var(--jade)}
+.bar.r .f{background:var(--rose)}
+.bar .n{font-variant-numeric:tabular-nums;min-width:64px;text-align:right}
+.bar .k{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:500;font-size:13px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto}
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--mute);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.comment{border-top:1px solid var(--line);padding:10px 0}
+.comment:first-child{border-top:0}
+.comment p{margin:4px 0 0;white-space:pre-wrap;word-break:break-word}
+.pill{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:0 8px;font-size:12px;color:var(--mute);margin-right:4px}
+.note{background:rgba(255,179,71,.1);border:1px solid rgba(255,179,71,.35);color:var(--ink);border-radius:12px;padding:10px 12px;font-size:14px;margin-top:10px}
+.err{color:var(--rose);margin-top:10px;min-height:1.4em}
+.sum li{margin:4px 0}
+[hidden]{display:none!important}
+@media (max-width:520px){h1{font-size:23px}.kpi .v{font-size:28px}.bar{grid-template-columns:minmax(80px,40%) 1fr auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1 class="logo">사주팔자<b>PLAY</b> <span class="mute" style="font-size:.7em">운영자 통계</span></h1>
+    <span class="sp"></span>
+    <button class="btn ghost" id="logout" type="button" hidden>잠그기</button>
+  </div>
+
+  <div id="login" class="card login">
+    <h2>운영자 확인</h2>
+    <p class="hint">Vercel 에 넣어 둔 운영자 비밀번호(ADMIN_DASHBOARD_TOKEN)를 입력하세요. 이 창(탭)을 닫으면 다시 물어봐요.</p>
+    <form id="login-form">
+      <input type="password" id="token" autocomplete="current-password" aria-label="운영자 비밀번호" placeholder="운영자 비밀번호">
+      <button class="btn" type="submit" style="width:100%;margin-top:10px">통계 열기</button>
+    </form>
+    <div class="err" id="login-err" role="alert"></div>
+  </div>
+
+  <div id="app" hidden>
+    <div class="card ctrl">
+      <span class="mute small">기간</span>
+      <div class="seg" id="days" role="group" aria-label="기간">
+        <button type="button" data-v="1">오늘·24시간</button><button type="button" data-v="7">7일</button><button type="button" data-v="30" class="on">30일</button><button type="button" data-v="90">90일</button><button type="button" data-v="365">1년</button>
+      </div>
+      <span class="mute small">대상</span>
+      <div class="seg" id="source" role="group" aria-label="대상">
+        <button type="button" data-v="production" class="on">실제 사용자</button><button type="button" data-v="development">개발·테스트</button><button type="button" data-v="all">전체</button>
+      </div>
+      <span class="sp" style="flex:1"></span>
+      <button class="btn ghost" id="reload" type="button">새로고침</button>
+      <button class="btn ghost" id="csv" type="button">피드백 엑셀(CSV)</button>
+    </div>
+    <div class="err" id="err" role="alert"></div>
+    <div id="out"></div>
+  </div>
+</div>
+<script src="assets/admin.js"></script>
+</body>
+</html>

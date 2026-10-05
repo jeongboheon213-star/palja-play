@@ -295,3 +295,11 @@
 - RLS 켜짐 여부·service_role 권한·authenticated 권한은 공개 키로 확인 불가 → 사용자가 SQL Editor 에서 읽기 전용 조회 실행 필요.
 - 사용자 SQL Editor 조회 결과(2026-10-05): RLS = true, anon·authenticated 권한 없음 ✔. 그러나 service_role 에 DELETE·TRUNCATE·REFERENCES·TRIGGER 도 있음 ✖ (Supabase 가 새 테이블에 자동으로 주는 기본 권한 — 기존 테스트는 "삭제 grant 문이 없다"만 검사해서 놓침).
   → 테스트 강화(service_role 회수 후 부여), 원본 migration 수정, 이미 실행한 DB 용 보정 `20261005020000_orders_restrict_service_role.sql`(권한만, 데이터·구조 변경 없음). 사용자 Run 필요.
+
+## 2026-10-05 — 운영자 통계 페이지 (`/admin.html`)
+- 사용자 요청: 피드백 데이터를 분석해 통계로 볼 수 있는 운영자 페이지. 설명·설정 방법: `docs/ADMIN_DASHBOARD.md`.
+- 서버 `POST /api/admin/stats`: `ADMIN_DASHBOARD_TOKEN`(24자 이상, 서버 환경 변수) 확인 → `SUPABASE_SECRET_KEY` 로 beta_feedback·beta_events 의 정해진 컬럼만 기간·출처 조건으로 읽음(페이지 1000행, 상한 5만) → 순수 함수로 집계. 오류 로그에 키·주소·본문 없음.
+- 화면: 핵심 숫자, 문장 요약, 단계별 흐름, 날짜별 차트(SVG), 공감도·영역·캐릭터·출생시간·절기·버전별 분석, 유입·공유·배틀, 유료 관심, 의견 검색, CSV. 새 npm 패키지 없음.
+- 보안: 비밀번호는 탭 sessionStorage 만, noindex·no-store·X-Frame-Options DENY, 의견은 textContent, CSV 수식 방지.
+- 테스트: `tests/admin.test.ts` 10개 (집계 정확성·KST 날짜·빈 데이터·CSV·컬럼·비밀번호 503/401/지연·Supabase 질의·화면에 비밀/서버 코드 없음). 단위 240/240, E2E 35/35, 배틀 34/34. 가짜 데이터 로컬 서버로 화면 확인(375px 가로 넘침 0, 틀린 비밀번호 → 로그인 화면).
+- 아직: 사용자가 Vercel 에 ADMIN_DASHBOARD_TOKEN(+ Production 의 SUPABASE_SECRET_KEY) 입력 후 실제 데이터 확인.

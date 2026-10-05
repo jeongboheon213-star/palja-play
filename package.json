@@ -13,7 +13,8 @@
     "dev": "node scripts/build.mjs --dev --serve",
     "e2e": "node scripts/build.mjs --dev --no-remote --kakao-test-key && node scripts/e2e.mjs && node scripts/e2e-battle.mjs",
     "build:api": "node scripts/build-api.mjs",
-    "e2e:prod": "node scripts/e2e-battle.mjs https://palja-play.vercel.app && node scripts/prod-qa.mjs https://palja-play.vercel.app"
+    "e2e:prod": "node scripts/e2e-battle.mjs https://palja-play.vercel.app && node scripts/prod-qa.mjs https://palja-play.vercel.app",
+    "admin:token": "node scripts/admin-token.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

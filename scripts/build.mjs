@@ -78,10 +78,11 @@ const paymentsLabel = paymentsMode === "off" || !tossClientKey ? "off (준비 �
 rmSync(outdir, { recursive: true, force: true });
 mkdirSync(`${outdir}/assets`, { recursive: true });
 cpSync("web/index.html", `${outdir}/index.html`);
+cpSync("web/admin.html", `${outdir}/admin.html`); // 운영자 통계 (서버에서 운영자 비밀번호 확인, 검색 노출 차단)
 if (dev) cpSync("web/debug.html", `${outdir}/debug.html`);
 
 const options = {
-  entryPoints: dev ? { app: "web/src/main.ts", debug: "web/src/debug.ts" } : { app: "web/src/main.ts" },
+  entryPoints: dev ? { app: "web/src/main.ts", admin: "web/src/admin.ts", debug: "web/src/debug.ts" } : { app: "web/src/main.ts", admin: "web/src/admin.ts" },
   outdir: `${outdir}/assets`,
   absWorkingDir: process.cwd(),
   bundle: true,

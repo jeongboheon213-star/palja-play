@@ -54,6 +54,9 @@
 - 사주 계산: 난수·현재 시각 의존·가짜 계산·AI 계산 금지. 검증 안 된 것을 "검증됨/정확한 만세력" 이라 말하지 않는다 (`src/lib/saju/verification.ts` 기준).
 - npm 패키지 추가 시 이름·이유·dev/prod 를 먼저 사용자에게 알린다. 큰 프레임워크 이전 금지.
 
+## 3-1. 운영자 통계
+`/admin.html` (설명 `docs/ADMIN_DASHBOARD.md`). 서버 환경 변수 `ADMIN_DASHBOARD_TOKEN` 이 있어야 열림.
+
 ## 4. 구조 요약
 - `src/lib/saju` 계산 엔진 → `src/lib/interpretation` (Signals·점수·FREE/PREMIUM) → `src/lib/engine` 조립
 - `src/lib/battle/battle.ts` 배틀 카드·비교·문자 URI / `src/lib/battle/share.ts` **유일한 배틀 링크 생성기**
