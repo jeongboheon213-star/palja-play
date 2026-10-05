@@ -191,3 +191,10 @@
 - 실제 앱(개발 서버)에서 입력→결과→피드백 제출 → Supabase 에 feedback 1건, events 8건 저장 확인(SQL 조회, `source=development`).
 - E2E 는 `--no-remote` 빌드로 실행해 테스트 기록이 DB 에 쌓이지 않게 함. E2E 28/28 통과.
 - 남은 일: Vercel Environment Variables 에 `PALJA_SUPABASE_URL`, `PALJA_SUPABASE_ANON_KEY` 등록 (사용자 계정에서).
+
+## 2026-10-05 — Vercel 환경 변수: 연동이 만든 이름 자동 사용
+
+- Vercel 환경 변수 화면 확인: Vercel–Supabase 연동으로 POSTGRES_* , SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_JWT_SECRET 이 Production 에 이미 등록되어 있음 (값은 가려져 있어 어느 Supabase 프로젝트인지는 확인 못 함 → 배포 빌드 로그의 "supabase: 설정됨 (호스트)" 로 확인 예정).
+- 사용자 결정(1번): 빌드가 PALJA_* 가 없으면 SUPABASE_URL / SUPABASE_ANON_KEY (및 NEXT_PUBLIC_* , SUPABASE_PUBLISHABLE_KEY) 를 읽도록 변경. 사용자가 Vercel 에 따로 입력할 필요 없음.
+- 안전장치 강화: 키가 sb_publishable_ 이거나 JWT role=anon 일 때만 허용(service_role JWT, sb_secret_ → 빌드 중단), URL 은 https://xxxx.supabase.co 형식만. POSTGRES_* / SUPABASE_JWT_SECRET 은 읽지 않으며 번들에 들어가지 않음을 확인.
+- 빌드 로그에 연결 대상 호스트와 사용한 변수 이름 표시.

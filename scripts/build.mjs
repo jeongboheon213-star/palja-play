@@ -27,12 +27,37 @@ const outdir = dev ? "dist-dev" : "dist";
 const publicUrl = process.env.PALJA_PUBLIC_URL || null;
 // --no-remote: 자동 테스트(E2E)용. Supabase 설정이 있어도 쓰지 않는다 (테스트 기록이 DB 에 쌓이지 않게)
 const noRemote = process.argv.includes("--no-remote");
-const supabaseUrl = noRemote ? null : process.env.PALJA_SUPABASE_URL || null;
-const supabaseAnonKey = noRemote ? null : process.env.PALJA_SUPABASE_ANON_KEY || null;
-// 실수 방지: 관리자(service_role/secret) 키는 브라우저 번들에 넣지 않는다
-if (supabaseAnonKey && (/^sb_secret_/.test(supabaseAnonKey) || /service_role/.test(Buffer.from(supabaseAnonKey.split(".")[1] ?? "", "base64").toString()))) {
-  throw new Error("PALJA_SUPABASE_ANON_KEY 에 관리자(service_role/secret) 키가 들어 있습니다. 브라우저에는 anon(공개) 키만 넣으세요.");
+// 이름 우선순위: 직접 지정(PALJA_*) → Vercel–Supabase 연동이 자동으로 만든 이름(SUPABASE_*).
+// 브라우저에 들어가는 것은 URL 과 공개(anon/publishable) 키 두 개뿐이다.
+// POSTGRES_* / SUPABASE_JWT_SECRET / SUPABASE_SERVICE_ROLE_KEY 같은 비밀 값은 읽지 않는다.
+const pickEnv = (...names) => {
+  for (const n of names) if (process.env[n]) return { name: n, value: process.env[n] };
+  return null;
+};
+const urlEnv = noRemote ? null : pickEnv("PALJA_SUPABASE_URL", "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
+const keyEnv = noRemote ? null : pickEnv("PALJA_SUPABASE_ANON_KEY", "SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_PUBLISHABLE_KEY");
+const supabaseUrl = urlEnv?.value ?? null;
+const supabaseAnonKey = keyEnv?.value ?? null;
+
+/** 공개 키인지 확인: sb_publishable_… 이거나, JWT 이면 role 이 anon 이어야 한다 */
+function isPublicKey(k) {
+  if (k.startsWith("sb_publishable_")) return true;
+  if (k.startsWith("sb_")) return false; // sb_secret_ 등
+  try {
+    const payload = JSON.parse(Buffer.from((k.split(".")[1] ?? "").replace(/-/g, "+").replace(/_/g, "/"), "base64").toString());
+    return payload.role === "anon";
+  } catch {
+    return false;
+  }
 }
+// 실수 방지: 관리자(service_role/secret) 키는 브라우저 번들에 절대 넣지 않는다
+if (supabaseAnonKey && !isPublicKey(supabaseAnonKey)) {
+  throw new Error(`${keyEnv.name} 가 공개(anon/publishable) 키가 아닙니다. 관리자 키는 브라우저에 넣을 수 없어 빌드를 멈춥니다.`);
+}
+if (supabaseUrl && !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(supabaseUrl)) {
+  throw new Error(`${urlEnv.name} 형식이 Supabase 프로젝트 주소(https://xxxx.supabase.co)가 아닙니다.`);
+}
+const supabaseLabel = supabaseUrl && supabaseAnonKey ? `설정됨 (${new URL(supabaseUrl).host}, ${urlEnv.name}/${keyEnv.name})` : "미설정";
 
 rmSync(outdir, { recursive: true, force: true });
 mkdirSync(`${outdir}/assets`, { recursive: true });
@@ -67,5 +92,5 @@ if (serve) {
 } else {
   const r = await esbuild.build({ ...options, metafile: true });
   const out = Object.entries(r.metafile.outputs).map(([f, o]) => `${f} ${(o.bytes / 1024).toFixed(1)}KB`);
-  console.log(`[${dev ? "development" : "production"}] ${out.join(", ")}  supabase: ${supabaseUrl && supabaseAnonKey ? "설정됨" : "미설정"}`);
+  console.log(`[${dev ? "development" : "production"}] ${out.join(", ")}  supabase: ${supabaseLabel}`);
 }
