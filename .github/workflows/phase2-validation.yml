@@ -1,0 +1,48 @@
+name: Phase 2 validation
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: node scripts/build-tier-reference.mjs --check
+      - name: Analyze tier reference distribution
+        run: npx tsx scripts/analyze-tier-distribution.ts | tee tier-distribution.json
+      - run: node scripts/verify-tier-analysis.mjs tier-distribution.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tier-distribution
+          path: tier-distribution.json
+  payment-sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: isolated_ci_fixture
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate payment migrations in isolated PostgreSQL
+        env:
+          PALJA_TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: node scripts/validate-payment-sql.mjs

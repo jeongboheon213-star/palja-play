@@ -664,6 +664,26 @@ function buildPremiumReport(productId, signalIds) {
   });
 }
 
+// src/server/premium/access.ts
+async function openPremiumReport(deps, input) {
+  if (input.openContent !== true) return { ok: false, status: 400, code: "OPEN_REQUIRED", message: "리포트 열기 버튼을 눌러 주세요." };
+  const entitlement = await findEntitlement(deps, input);
+  if (!entitlement.ok) return entitlement;
+  const { orderId, productId, signalIds } = entitlement.body;
+  const report = buildPremiumReport(productId, signalIds);
+  try {
+    const row = await deps.repo.openContent(orderId, deps.sha256(normalizePurchaseCode(input.purchaseCode)), chartKeyFor(productId, signalIds, deps.sha256).key, productId, deps.tossMode);
+    if (!row || row.status !== "PAID" || !row.content_opened_at) return { ok: false, status: 409, code: "ACCESS_REVOKED", message: "이 구매는 리포트를 열 수 없는 상태예요." };
+    return { ok: true, status: 200, body: { orderId, contentOpenedAt: row.content_opened_at, report } };
+  } catch {
+    return { ok: false, status: 503, code: "STORAGE_ERROR", message: "열람 기록을 저장하지 못했어요. 잠시 후 다시 시도해 주세요." };
+  }
+}
+
+// api-lib/premium-limit.ts
+import { createHmac } from "node:crypto";
+import { isIP } from "node:net";
+
 // api-lib/env.ts
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
@@ -710,13 +730,32 @@ function createSupabaseOrderRepo(baseUrl, serviceRoleKey, fetchFn = fetch) {
     "Content-Type": "application/json"
   };
   async function req(url, init) {
-    const res = await fetchFn(url, { ...init, headers: { ...headers, ...init.headers } });
-    if (!res.ok) throw new Error(`supabase ${res.status}`);
+    let res;
+    try {
+      res = await fetchFn(url, { ...init, headers: { ...headers, ...init.headers } });
+    } catch (error) {
+      const cause = error instanceof Error ? error.cause : void 0;
+      const directCode = error instanceof Error ? error.code : void 0;
+      const invalidHeader = error instanceof Error && /invalid header|header.*invalid|not a legal HTTP header|ByteString/i.test(error.message);
+      const code = ["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_INVALID_ARG", "ERR_INVALID_CHAR", "ERR_INVALID_HTTP_TOKEN", "CERT_HAS_EXPIRED", "UNABLE_TO_VERIFY_LEAF_SIGNATURE"].find((c) => c === cause?.code || c === directCode) ?? (invalidHeader ? "INVALID_HEADER" : "NETWORK_ERROR");
+      console.error("[payment-storage]", JSON.stringify({ operation: init.method, status: 0, code }));
+      throw new Error("supabase network error");
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const known = ["42501", "23502", "23503", "23505", "23514", "42P01", "42703", "PGRST106", "PGRST202", "PGRST204", "PGRST205", "PGRST301", "PGRST302", "PGRST303"];
+      const code = known.find((c) => c === body.code) ?? "HTTP_ERROR";
+      console.error("[payment-storage]", JSON.stringify({ operation: init.method, status: res.status, code }));
+      throw new Error(`supabase ${res.status}`);
+    }
     const text = await res.text();
     return text ? JSON.parse(text) : null;
   }
   const one = (rows) => Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  const rpc = async (name, orderId, codeHash, chartKey, productId, mode) => one(await req(`${baseUrl.replace(/\/+$/, "")}/rest/v1/rpc/${name}`, { method: "POST", body: JSON.stringify({ p_order_id: orderId, p_code_hash: codeHash, p_chart_key: chartKey, p_product_id: productId, p_mode: mode }) }));
   return {
+    openContent: (id, code, chart, product, mode) => rpc("open_paid_content", id, code, chart, product, mode),
+    claimUnopenedRefund: (id, code, chart, product, mode) => rpc("claim_unopened_refund", id, code, chart, product, mode),
     async insert(o) {
       await req(root, { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(o) });
     },
@@ -755,7 +794,7 @@ function supabaseServerKey(env) {
     }
   };
   for (const name of ["SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"]) {
-    const key = env[name];
+    const key = env[name]?.trim();
     if (key && isSecret(key)) return { name, key };
   }
   return null;
@@ -763,8 +802,8 @@ function supabaseServerKey(env) {
 function paymentsConfig(env = process.env) {
   const mode = env.PALJA_PAYMENTS_MODE ?? "off";
   if (mode !== "test" && mode !== "live") return { ok: false, status: 503, code: "PAYMENTS_DISABLED", message: "사주팔자PLAY Beta에서 준비 중인 기능입니다." };
-  const secret = env.TOSS_SECRET_KEY ?? "";
-  const supaUrl = env.SUPABASE_URL ?? "";
+  const secret = (env.TOSS_SECRET_KEY ?? "").trim();
+  const supaUrl = (env.SUPABASE_URL ?? "").trim();
   const supaKey = supabaseServerKey(env)?.key ?? "";
   if (mode === "test" && !/^test_(g?sk)_/.test(secret)) return { ok: false, status: 503, code: "PAYMENTS_MISCONFIGURED", message: "결제 설정을 확인하는 중이에요." };
   if (mode === "live") {
@@ -803,6 +842,47 @@ async function readJson(request) {
     return null;
   }
 }
+function fromResult(r) {
+  return r.ok ? json(r.status, r.body) : json(r.status, { code: r.code, message: r.message });
+}
+
+// api-lib/premium-limit.ts
+function premiumLimitHashes(request, code, key, vercel) {
+  const raw = vercel ? request.headers.get("x-vercel-forwarded-for")?.trim() : null;
+  let client = "unidentified";
+  if (raw && isIP(raw) === 4) client = raw;
+  if (raw && isIP(raw) === 6) {
+    const normalized = new URL(`http://[${raw}]/`).hostname.slice(1, -1);
+    const [left, right] = normalized.split("::");
+    const a = left ? left.split(":") : [];
+    const b = right ? right.split(":") : [];
+    const full = right !== void 0 ? [...a, ...Array(8 - a.length - b.length).fill("0"), ...b] : a;
+    client = full.slice(0, 4).map((p) => p.padStart(4, "0")).join(":");
+  }
+  const digest = (context, value) => createHmac("sha256", key).update(`premium-limit-v1:${context}:${value}`).digest("hex");
+  return { p_client_hash: digest("client", client), p_code_hash: digest("code", normalizePurchaseCode(code) ?? "invalid") };
+}
+async function enforcePremiumLimit(request, code, env = process.env, fetchFn = fetch) {
+  const key = supabaseServerKey(env)?.key;
+  const url = env.SUPABASE_URL;
+  if (!key || !url) return json(503, { code: "RATE_LIMIT_UNAVAILABLE", message: "구매 확인을 잠시 이용할 수 없어요." });
+  try {
+    const response = await fetchFn(`${url.replace(/\/+$/, "")}/rest/v1/rpc/consume_premium_attempt`, {
+      method: "POST",
+      headers: { apikey: key, ...key.startsWith("sb_") ? {} : { Authorization: `Bearer ${key}` }, "Content-Type": "application/json" },
+      body: JSON.stringify(premiumLimitHashes(request, code, key, env.VERCEL === "1"))
+    });
+    if (!response.ok) throw new Error("limiter unavailable");
+    const allowed = await response.json();
+    if (allowed === true) return null;
+    if (allowed !== false) throw new Error("invalid limiter response");
+    const result = json(429, { code: "TOO_MANY_ATTEMPTS", message: "구매 확인 요청이 많아요. 10분 뒤 다시 시도해 주세요." });
+    result.headers.set("Retry-After", "600");
+    return result;
+  } catch {
+    return json(503, { code: "RATE_LIMIT_UNAVAILABLE", message: "구매 확인을 잠시 이용할 수 없어요. 잠시 후 다시 시도해 주세요." });
+  }
+}
 
 // api-src/premium/report.ts
 async function POST(request) {
@@ -810,9 +890,9 @@ async function POST(request) {
   if (!cfg.ok) return json(cfg.status, { code: cfg.code, message: cfg.message });
   const body = await readJson(request);
   if (!body) return json(400, { code: "INVALID_REQUEST", message: "요청 형식이 올바르지 않아요." });
-  const e = await findEntitlement(cfg.deps, { purchaseCode: body.purchaseCode, productId: body.productId, signalIds: body.signalIds });
-  if (!e.ok) return json(e.status, { code: e.code, message: e.message });
-  return json(200, { orderId: e.body.orderId, report: buildPremiumReport(e.body.productId, e.body.signalIds) });
+  const limited = await enforcePremiumLimit(request, body.purchaseCode);
+  if (limited) return limited;
+  return fromResult(await openPremiumReport(cfg.deps, { purchaseCode: body.purchaseCode, productId: body.productId, signalIds: body.signalIds, openContent: body.openContent }));
 }
 export {
   POST

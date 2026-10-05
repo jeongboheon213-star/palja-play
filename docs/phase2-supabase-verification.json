@@ -1,0 +1,21 @@
+{
+  "evidence": "User executed phase2-apply.sql and supplied phase2-verify.sql result; no secret keys or customer data",
+  "dateKst": "2026-10-05",
+  "verificationScope": "schema presence, RLS, listed privileges; not end-to-end payment/content/refund/rate-limit behavior",
+  "allExpectedValuesMatched": true,
+  "phase2_check": {
+    "orders_rls": true,
+    "anon_open_rpc": false,
+    "anon_limit_rpc": false,
+    "rate_buckets_rls": true,
+    "service_open_rpc": true,
+    "service_limit_rpc": true,
+    "anon_orders_insert": false,
+    "anon_orders_select": false,
+    "service_cancel_rpc": true,
+    "content_opened_column": true,
+    "service_orders_delete": false,
+    "service_rate_direct_select": false,
+    "authenticated_orders_select": false
+  }
+}

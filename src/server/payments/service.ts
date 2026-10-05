@@ -145,7 +145,7 @@ export async function confirmPayment(deps: PaymentDeps, input: { paymentKey: unk
       ? { ok: true, status: 200, body: { status: "PAID", orderId, productId: order.product_id, amount: order.amount } }
       : fail(409, "ALREADY_PAID_DIFFERENT_KEY", "이미 다른 결제로 처리된 주문이에요.");
   }
-  if (order.status === "REFUNDED" || order.status === "CANCELLED" || order.status === "FAILED") {
+  if (order.status === "REFUNDED" || order.status === "REFUND_REQUESTED" || order.status === "CANCELLED" || order.status === "FAILED") {
     return fail(409, `ORDER_${order.status}`, "이미 종료된 주문이에요.");
   }
 
@@ -238,12 +238,44 @@ export async function findEntitlement(
 // ── 6) 환불 (관리자 전용) ────────────────────────────────────────
 
 export async function refundOrder(deps: PaymentDeps, input: { orderId: string; reason: string }): Promise<ApiResult<{ status: "REFUNDED" }>> {
+  try {
   const order = await deps.repo.get(input.orderId);
   if (!order) return fail(404, "ORDER_NOT_FOUND", "주문 없음");
   if (order.status === "REFUNDED") return { ok: true, status: 200, body: { status: "REFUNDED" } };
-  if (order.status !== "PAID" || !order.payment_key) return fail(409, "NOT_REFUNDABLE", `환불할 수 없는 상태: ${order.status}`);
+  if (!["PAID", "REFUND_REQUESTED"].includes(order.status) || !order.payment_key) return fail(409, "NOT_REFUNDABLE", `환불할 수 없는 상태: ${order.status}`);
+  if (order.toss_mode !== deps.tossMode) return fail(409, "MODE_MISMATCH", "결제 환경이 맞지 않아요.");
+  // Lock access before contacting Toss; unknown/failed responses stay locked for safe retry.
+  if (order.status === "PAID") {
+    const locked = await deps.repo.transition(order.order_id, ["PAID"], { status: "REFUND_REQUESTED" });
+    if (!locked) return fail(409, "REFUND_PROCESSING", "취소 상태를 다시 확인해 주세요.");
+  }
   const r = await deps.toss.cancel({ paymentKey: order.payment_key, reason: input.reason.slice(0, 200), idempotencyKey: `refund-${order.order_id}` });
-  if (!r.ok && r.code !== "ALREADY_CANCELED_PAYMENT") return fail(400, r.code, r.message);
-  await deps.repo.transition(order.order_id, ["PAID"], { status: "REFUNDED", refund_reason: input.reason.slice(0, 200) });
+  if (!r.ok && r.code !== "ALREADY_CANCELED_PAYMENT") return fail(503, "REFUND_PROCESSING", "취소 결과를 확인하는 중이에요. 다시 확인하거나 고객 문의로 알려 주세요.");
+  const confirmed = r.ok ? r : await deps.toss.getByOrderId(order.order_id);
+  if (!confirmed.ok || confirmed.payment.status !== "CANCELED" || confirmed.payment.orderId !== order.order_id || confirmed.payment.paymentKey !== order.payment_key || confirmed.payment.totalAmount !== order.amount) {
+    return fail(503, "REFUND_PROCESSING", "취소 결과를 확인하는 중이에요. 고객 문의로 알려 주세요.");
+  }
+  const saved = await deps.repo.transition(order.order_id, ["REFUND_REQUESTED"], { status: "REFUNDED", refund_reason: input.reason.slice(0, 200) });
+  if (!saved && (await deps.repo.get(order.order_id))?.status !== "REFUNDED") return fail(503, "STORAGE_ERROR", "취소 기록을 다시 확인해야 해요.");
   return { ok: true, status: 200, body: { status: "REFUNDED" } };
+  } catch {
+    return fail(503, "STORAGE_ERROR", "취소 상태를 확인하지 못했어요. 다시 시도해 주세요.");
+  }
+}
+
+/** Customer cancellation only for unprovided content; administrator exceptions use refundOrder. */
+export async function refundUnopenedOrder(deps: PaymentDeps, input: { purchaseCode: unknown; productId: unknown; signalIds: unknown }): Promise<ApiResult<{ status: "REFUNDED" }>> {
+  const code = normalizePurchaseCode(input.purchaseCode);
+  const productId = typeof input.productId === "string" ? input.productId : "";
+  const chart = serverPrice(productId) ? chartKeyFor(productId as PaidProductId, input.signalIds, deps.sha256) : null;
+  if (!code || !chart) return fail(404, "NOT_REFUNDABLE", "취소할 구매 정보를 확인해 주세요.");
+  try {
+    const hash = deps.sha256(code);
+    const order = await deps.repo.findByPurchaseCodeHash(hash);
+    if (!order || order.product_id !== productId || order.chart_key !== chart.key || order.toss_mode !== deps.tossMode) return fail(404, "NOT_REFUNDABLE", "취소할 구매 정보를 확인해 주세요.");
+    if (order.status === "REFUNDED") return { ok: true, status: 200, body: { status: "REFUNDED" } };
+    const locked = await deps.repo.claimUnopenedRefund(order.order_id, hash, chart.key, productId, deps.tossMode);
+    if (!locked) return fail(409, "SUPPORT_REQUIRED", "리포트가 제공되었거나 취소할 수 없는 상태예요. 결제 오류·중복 결제·서비스 문제 등은 고객 문의로 확인해 주세요.");
+    return refundOrder(deps, { orderId: order.order_id, reason: "미열람 구매 취소" });
+  } catch { return fail(503, "STORAGE_ERROR", "취소 상태를 확인하지 못했어요."); }
 }

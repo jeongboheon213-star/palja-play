@@ -225,7 +225,7 @@ async function confirmPayment(deps, input) {
   if (order.status === "PAID") {
     return order.payment_key === paymentKey ? { ok: true, status: 200, body: { status: "PAID", orderId, productId: order.product_id, amount: order.amount } } : fail(409, "ALREADY_PAID_DIFFERENT_KEY", "이미 다른 결제로 처리된 주문이에요.");
   }
-  if (order.status === "REFUNDED" || order.status === "CANCELLED" || order.status === "FAILED") {
+  if (order.status === "REFUNDED" || order.status === "REFUND_REQUESTED" || order.status === "CANCELLED" || order.status === "FAILED") {
     return fail(409, `ORDER_${order.status}`, "이미 종료된 주문이에요.");
   }
   const amount = typeof input.amount === "number" ? input.amount : typeof input.amount === "string" && /^\d+$/.test(input.amount) ? Number(input.amount) : NaN;
@@ -314,13 +314,32 @@ function createSupabaseOrderRepo(baseUrl, serviceRoleKey, fetchFn = fetch) {
     "Content-Type": "application/json"
   };
   async function req(url, init) {
-    const res = await fetchFn(url, { ...init, headers: { ...headers, ...init.headers } });
-    if (!res.ok) throw new Error(`supabase ${res.status}`);
+    let res;
+    try {
+      res = await fetchFn(url, { ...init, headers: { ...headers, ...init.headers } });
+    } catch (error) {
+      const cause = error instanceof Error ? error.cause : void 0;
+      const directCode = error instanceof Error ? error.code : void 0;
+      const invalidHeader = error instanceof Error && /invalid header|header.*invalid|not a legal HTTP header|ByteString/i.test(error.message);
+      const code = ["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_INVALID_ARG", "ERR_INVALID_CHAR", "ERR_INVALID_HTTP_TOKEN", "CERT_HAS_EXPIRED", "UNABLE_TO_VERIFY_LEAF_SIGNATURE"].find((c) => c === cause?.code || c === directCode) ?? (invalidHeader ? "INVALID_HEADER" : "NETWORK_ERROR");
+      console.error("[payment-storage]", JSON.stringify({ operation: init.method, status: 0, code }));
+      throw new Error("supabase network error");
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const known = ["42501", "23502", "23503", "23505", "23514", "42P01", "42703", "PGRST106", "PGRST202", "PGRST204", "PGRST205", "PGRST301", "PGRST302", "PGRST303"];
+      const code = known.find((c) => c === body.code) ?? "HTTP_ERROR";
+      console.error("[payment-storage]", JSON.stringify({ operation: init.method, status: res.status, code }));
+      throw new Error(`supabase ${res.status}`);
+    }
     const text = await res.text();
     return text ? JSON.parse(text) : null;
   }
   const one = (rows) => Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  const rpc = async (name, orderId, codeHash, chartKey, productId, mode) => one(await req(`${baseUrl.replace(/\/+$/, "")}/rest/v1/rpc/${name}`, { method: "POST", body: JSON.stringify({ p_order_id: orderId, p_code_hash: codeHash, p_chart_key: chartKey, p_product_id: productId, p_mode: mode }) }));
   return {
+    openContent: (id, code, chart, product, mode) => rpc("open_paid_content", id, code, chart, product, mode),
+    claimUnopenedRefund: (id, code, chart, product, mode) => rpc("claim_unopened_refund", id, code, chart, product, mode),
     async insert(o) {
       await req(root, { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(o) });
     },
@@ -359,7 +378,7 @@ function supabaseServerKey(env) {
     }
   };
   for (const name of ["SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"]) {
-    const key = env[name];
+    const key = env[name]?.trim();
     if (key && isSecret(key)) return { name, key };
   }
   return null;
@@ -367,8 +386,8 @@ function supabaseServerKey(env) {
 function paymentsConfig(env = process.env) {
   const mode = env.PALJA_PAYMENTS_MODE ?? "off";
   if (mode !== "test" && mode !== "live") return { ok: false, status: 503, code: "PAYMENTS_DISABLED", message: "사주팔자PLAY Beta에서 준비 중인 기능입니다." };
-  const secret = env.TOSS_SECRET_KEY ?? "";
-  const supaUrl = env.SUPABASE_URL ?? "";
+  const secret = (env.TOSS_SECRET_KEY ?? "").trim();
+  const supaUrl = (env.SUPABASE_URL ?? "").trim();
   const supaKey = supabaseServerKey(env)?.key ?? "";
   if (mode === "test" && !/^test_(g?sk)_/.test(secret)) return { ok: false, status: 503, code: "PAYMENTS_MISCONFIGURED", message: "결제 설정을 확인하는 중이에요." };
   if (mode === "live") {

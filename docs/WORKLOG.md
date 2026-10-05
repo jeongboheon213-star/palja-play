@@ -295,3 +295,46 @@
 - RLS 켜짐 여부·service_role 권한·authenticated 권한은 공개 키로 확인 불가 → 사용자가 SQL Editor 에서 읽기 전용 조회 실행 필요.
 - 사용자 SQL Editor 조회 결과(2026-10-05): RLS = true, anon·authenticated 권한 없음 ✔. 그러나 service_role 에 DELETE·TRUNCATE·REFERENCES·TRIGGER 도 있음 ✖ (Supabase 가 새 테이블에 자동으로 주는 기본 권한 — 기존 테스트는 "삭제 grant 문이 없다"만 검사해서 놓침).
   → 테스트 강화(service_role 회수 후 부여), 원본 migration 수정, 이미 실행한 DB 용 보정 `20261005020000_orders_restrict_service_role.sql`(권한만, 데이터·구조 변경 없음). 사용자 Run 필요.
+
+## 2026-10-05 — Phase 2 티어·최초 제공·복구/환불 보호 (Codex)
+
+- 기존 작업 브랜치/PR #1에서 계속함. 사용자 확인에 따라 orders 기존 권한 보정은 완료로 처리하고 재실행 요청하지 않음.
+- 초기 분포 분석 실제 실행(37,992건) 후 5일 간격의 60일 주기 편향을 발견. 하루 간격·12시간대·성별 동일 비중으로 보완해 유효 569,776건 확보(서머타임 제외 8건). 점수 빈도 JSON·버전 기준표·동점 포함 상위 비율·티어 UI와 배틀 표시 구현. 기존 score/compareBattle/createBattleShare 공식·주소 구조 변경 없음.
+- 성공 주소/서버 confirm만으로 본문을 자동 요청하지 않도록 변경. 명시적 열기에서 DB 행 잠금·권한 재확인·DB 시각 최초 제공 기록. 기록 불가/REFUND_REQUESTED/REFUNDED에서는 본문 차단.
+- 미열람 고객 취소와 열람 후 관리자 예외 환불을 구분. Toss 호출 전에 REFUND_REQUESTED로 접근 잠금; 전체 취소 응답 확인; DB 실패/미확정 응답은 멱등 재시도로 복구. 3분 법적 제한은 없음.
+- 구매코드 본문/취소 API에 HMAC 네트워크/코드 + DB 전체 제한 추가. 원 IP·코드 미저장, DB 장애 시 차단, IPv6 /64. 설정·보관·공유망/분산 공격 한계 문서화.
+- 새 migration, 사용자용 합본/읽기 전용 검증 SQL, TEST 관리자 환불·코드 재발급 도구 추가. 실제 Supabase 실행·Toss 결제는 하지 않음.
+- 실제 로컬 검사: npm ci, check 243/243, E2E 36/36, 배틀 34/34, 모의 결제 브라우저 7/7. 테스트 오류(RLS 정책/행 잠금 오인) 원인 수정하며 기존 보안 조건을 유지·강화. 최초 모의 브라우저 빌드가 결제 OFF로 실패한 원인을 고치고 재검사함.
+- 분석 재현 비교·최신 GitHub CI 기록은 PROGRESS에 후속 기록. 독립 PostgreSQL CI 검사를 추가해 실제 Supabase와 분리함.
+- npm 패키지 추가 없음. main/Production/LIVE 변경 없음. 다음은 사용자 SQL Editor Run 후 Preview TEST 키 연결.
+- 후속 확인: 전체 분포를 다시 실행한 JSON과 저장 결과가 완전히 동일. GitHub 코드 커밋 17a24c4 업로드 및 Actions #4 전체 success 확인(독립 PostgreSQL 동시성·권한 검사 포함). 사용자용 안내와 검증 기록을 같은 브랜치에 추가 저장.
+
+### 실제 Supabase 적용 확인 (사용자 Run)
+
+- 사용자가 phase2-apply.sql 실행 성공 화면과 phase2-verify.sql 결과 전체를 제공함. 13개 값 모두 기대값 일치: 최초 제공 컬럼 존재, orders/제한 테이블 RLS ON, 서버 열람·취소·제한 RPC 실행 허용, 확인된 브라우저 접근·서버 삭제/제한 테이블 직접 조회 거부.
+- 비밀 키·고객 정보 없는 확인 결과를 docs/phase2-supabase-verification.json으로 저장함. 실제 Toss/앱 열람·환불·제한 횟수 테스트로 과장하지 않음.
+- SQL 사용자 단계 완료. 다음은 Vercel Preview의 TEST 키 입력(사용자 전용). Production/LIVE 설정은 변경하지 않음.
+- 안내 문서 커밋 67fe8ce의 GitHub Actions #5 전체 success 확인.
+
+### Preview TEST 연결 후 주문 저장 오류 진단
+
+- 사용자 화면에서 Preview 재배포 Ready 및 TEST UI 확인. 실제 Toss 결제창 전 주문 생성은 STORAGE_ERROR 503으로 실패해 결제/환불 검증은 미완료.
+- Vercel 사용자 입력 설정 5개가 작업 브랜치 Preview에 존재하는 화면 확인. SUPABASE_URL 형식 오류 수정 후 빌드 성공. 서버 키 재입력 후 구성 검사는 통과했으나 DB 요청 실패 원인은 아직 미확정.
+- 기존 adapter가 오류를 삼켜 내부 원인이 로그에 없었음. 서버 저장소 실패에 HTTP 상태와 허용 목록의 DB/네트워크 분류만 추가. URL/키/헤더/요청/응답 원문/주문 식별자/message/stack 출력 금지. 알 수 없는 코드는 고정 분류로 대체.
+- 비밀정보 포함 응답과 네트워크 오류를 주입해 로그에 정보가 남지 않는 회귀 테스트 추가. npm run check: 타입/API 번들 최신 검사 + 244/244 PASS.
+- 사용자 제공 로그/첨부는 별도 파일이나 GitHub에 복사하지 않음. 다음은 새 Preview에서 1회 요청 후 payment-storage 분류 확인. 권한 변경/SQL 재실행/Production/LIVE 변경 없음.
+- 추가 실제 분류: NETWORK_ERROR/status 0으로 확인되어 DB 권한 오류라고 단정하지 않음. 서버 환경의 키/주소 앞뒤 공백·줄바꿈을 trim하도록 보완(키 원문 노출 없이 사용자 복사 오류 처리). 네트워크/TLS 허용 코드와 잘못된 헤더 고정 분류 추가. 미확정 원인은 계속 NETWORK_ERROR로 표시.
+- 새 회귀 검사: 줄바꿈 포함 가짜 키가 깨끗한 헤더로 전달됨, LIVE 잠금 유지, 헤더 오류 메시지 속 비밀 문자열이 로그에 없음. check 245/245 PASS. 실제 배포 재시도 전이므로 문제 해결 완료로 표현하지 않음.
+
+### TEST 사용자 확인 및 취소 안내 수정
+
+- 사용자 보고: TEST 표시 결제창, 결제 후 Premium 열람, 같은 기기 재열람, 코드 복구, 미열람 구매 취소 성공. 취소 후 버튼 무반응은 본문 차단 검증으로 단정하지 않음. 실제 주문 DB 상태/최초 시각/취소 후 코드 접근은 별도 검증 남음.
+- 현재 SDK가 주문서형 gck 키를 거부하는 실제 화면 확인. 사용자에게 API 개별 연동의 짝 test_ck/test_sk로 정정 안내. 새 안내에서는 현재 SDK 호환 키를 명시한다.
+- 원인: 취소 직후 로컬 구매 기록은 제거하지만 구매 버튼 상태가 갱신되지 않고, 이후 클릭 핸들러가 기록 없음에서 조용히 return. 취소 완료 시 안내를 화면에 유지하고 열기/취소 버튼을 숨김. 오래된 버튼/기기 저장 기록 유실 시 구매 기록 없음 안내 추가.
+- 코드로 복구한 구매(orderId restored)를 취소할 때 같은 orderId의 다른 구매까지 지워지지 않도록 상품+정규화 구매코드로 정확한 구매만 제거.
+- check 타입/API/전체 245개 PASS. 로컬 fake API 브라우저 10/10 PASS(취소 안내, 오래된 버튼 처리, 별도 복구 구매 보존 포함). 실제 Preview 반영 후 사용자의 재확인 대기.
+- 사용자 추가 요청: 독립 도메인/AdSense 지원. 무료·저렴·쉬운 이름 우선. DOMAIN_ADSENSE_PLAN.md에 가격/공식 요건/호스팅 상업용 제한·다음 단계를 기록. 구매/이전/광고 신청은 아직 안 함. main/Production/LIVE 변경 없음.
+
+- 피드백 저장·분석 요청: 기존 beta_feedback 저장소를 활용, 관리자 읽기 전용 월별/영역별/버전별 집계 SQL과 연결 안내 추가. 공개 키 미설정 상태를 결제 서버 설정과 구분. 자유 입력 개인정보 금지 안내 추가; 원문 자동 비식별화를 보장하지 않음. 실제 공개 키 입력·저장 확인은 사용자 단계이며 수행 완료로 기록하지 않음.
+
+- 사용자 도메인 HTTPS 접속 및 Preview 피드백 신규 DB 행 확인. 최신 기능 정식 공개와 AdSense 지원 요청에 따라 공개 전환 안내와 게시자 ID 기반 소유권 meta/ads.txt 빌드 지원 준비. 광고 스크립트/LIVE/main 병합은 실행하지 않음. 호스팅 선택과 실제 Google 게시자 ID 대기.

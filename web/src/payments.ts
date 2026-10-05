@@ -119,7 +119,8 @@ export async function startCheckout(input: { productId: string; resultId: string
 
 export type ReturnOutcome =
   | { kind: "none" }
-  | { kind: "paid"; purchase: StoredPurchase; report: PremiumReport }
+  | { kind: "paid"; purchase: StoredPurchase }
+  | { kind: "confirm-pending"; message: string }
   | { kind: "paid-no-report"; purchase: StoredPurchase | null; message: string }
   | { kind: "failed"; message: string; cancelled: boolean };
 
@@ -128,9 +129,9 @@ export async function handlePaymentReturn(): Promise<ReturnOutcome> {
   const q = new URLSearchParams(location.search);
   const pay = q.get("pay");
   if (pay !== "success" && pay !== "fail") return { kind: "none" };
-  history.replaceState(null, "", `${location.pathname}${location.hash}`); // paymentKey 등을 주소에서 제거
   const pending = safeGet<StoredPurchase>(sessionStorage, PENDING_KEY) ?? safeGet<StoredPurchase>(localStorage, PENDING_KEY);
   if (pay === "fail") {
+    history.replaceState(null, "", `${location.pathname}${location.hash}`);
     const code = q.get("code") ?? "UNKNOWN";
     const orderId = q.get("orderId") ?? pending?.orderId ?? "";
     if (orderId) await post("/api/payments/fail", { orderId, code, message: (q.get("message") ?? "").slice(0, 300) });
@@ -143,9 +144,11 @@ export async function handlePaymentReturn(): Promise<ReturnOutcome> {
   if (!paymentKey || !orderId || !amount) return { kind: "failed", cancelled: false, message: "결제 정보가 없어요. 처음부터 다시 시도해 주세요." };
   const c = await post<{ status: "PAID" }>("/api/payments/confirm", { paymentKey, orderId, amount });
   if (!c.ok) {
-    if (c.error.code === "STORAGE_ERROR" || c.error.code === "PAYMENT_PROCESSING") return { kind: "paid-no-report", purchase: pending, message: c.error.message };
+    if (c.error.code === "STORAGE_ERROR" || c.error.code === "PAYMENT_PROCESSING" || c.error.code === "NETWORK") return { kind: "confirm-pending", message: c.error.message };
+    history.replaceState(null, "", `${location.pathname}${location.hash}`);
     return { kind: "failed", cancelled: false, message: c.error.message };
   }
+  history.replaceState(null, "", `${location.pathname}${location.hash}`);
   if (!pending || pending.orderId !== orderId) {
     return { kind: "paid-no-report", purchase: null, message: "결제는 완료됐어요. 이 기기에 구매 코드가 없어 리포트를 열 수 없어요. 결제한 기기에서 다시 열거나 고객 문의로 알려 주세요." };
   }
@@ -154,16 +157,25 @@ export async function handlePaymentReturn(): Promise<ReturnOutcome> {
     sessionStorage.removeItem(PENDING_KEY);
     localStorage.removeItem(PENDING_KEY);
   } catch {}
-  const rep = await fetchReport(pending.purchaseCode, pending.productId, pending.signalIds);
-  return rep.ok ? { kind: "paid", purchase: pending, report: rep.report } : { kind: "paid-no-report", purchase: pending, message: rep.message };
+  // Confirmation never fetches content: only a deliberate open button provides the report.
+  return { kind: "paid", purchase: pending };
 }
 
 /** 구매 코드로 리포트 받기 (구매 다시 보기·다른 기기 복구) */
 export async function fetchReport(purchaseCode: string, productId: string, signalIds: readonly string[]): Promise<{ ok: true; report: PremiumReport } | { ok: false; message: string }> {
-  const r = await post<{ report: PremiumReport }>("/api/premium/report", { purchaseCode, productId, signalIds });
+  const r = await post<{ report: PremiumReport }>("/api/premium/report", { purchaseCode, productId, signalIds, openContent: true });
   return r.ok ? { ok: true, report: r.data.report } : { ok: false, message: r.error.message };
 }
 
 export function rememberRestoredPurchase(p: StoredPurchase): void {
   rememberPurchase(p);
+}
+
+export async function cancelUnopenedPurchase(p: StoredPurchase): Promise<{ ok: true } | { ok: false; message: string }> {
+  const result = await post("/api/payments/refund-unopened", { purchaseCode: p.purchaseCode, productId: p.productId, signalIds: p.signalIds });
+  if (!result.ok) return { ok: false, message: result.error.message };
+  const normalize = (code: string) => code.toUpperCase().replace(/[\s-]/g, "");
+  safeSet(localStorage, PURCHASES_KEY, storedPurchases().filter((x) =>
+    !(x.productId === p.productId && normalize(x.purchaseCode) === normalize(p.purchaseCode))));
+  return { ok: true };
 }

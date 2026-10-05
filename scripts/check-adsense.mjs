@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { adsenseFiles } from './adsense-files.mjs';
+const html = '<html><head></head><body></body></html>';
+assert.deepEqual(adsenseFiles(html, null), { html, adsTxt: null });
+const prepared = adsenseFiles(html, 'ca-pub-1234567890123456');
+assert.match(prepared.html, /google-adsense-account/);
+assert.equal(prepared.adsTxt, 'google.com, pub-1234567890123456, DIRECT, f08c47fec0942fa0\n');
+assert.doesNotMatch(prepared.html, /<script/);
+assert.throws(() => adsenseFiles(html, 'ca-pub-1234"><script>'));
+console.log('AdSense: unset leaves site unchanged; valid ID produces meta/ads.txt; invalid ID rejected; no advertising script');

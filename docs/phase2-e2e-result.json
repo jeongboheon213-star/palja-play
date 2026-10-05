@@ -1,0 +1,175 @@
+{
+  "browser": "Edg/154.0.4258.53",
+  "results": [
+    {
+      "name": "Landing 표시 + landing_view 이벤트 + Beta 표시",
+      "ok": true
+    },
+    {
+      "name": "입력 화면: 음력·해외 출생 disabled, 양력 선택",
+      "ok": true
+    },
+    {
+      "name": "잘못된 입력: 빈 값 제출 → 안내, 결과로 넘어가지 않음",
+      "ok": true
+    },
+    {
+      "name": "잘못된 입력: 1961-12-31 → 지원 범위 안내",
+      "ok": true
+    },
+    {
+      "name": "잘못된 입력: 미래 날짜 → 안내",
+      "ok": true
+    },
+    {
+      "name": "서머타임 gap 1987-05-10 02:30 → 안내 (결과 막음)",
+      "ok": true
+    },
+    {
+      "name": "정상 입력 1990-05-15 14:20 → 계산 애니메이션 → 결과",
+      "ok": true
+    },
+    {
+      "name": "결과 최상단: 캐릭터·한 줄 설명·진행 문구, 개발자 용어 없음, 가로 넘침 없음",
+      "ok": true
+    },
+    {
+      "name": "티어: PLAY 기준 종합 티어·TOP 능력치 표시",
+      "ok": true
+    },
+    {
+      "name": "7개 능력치: 게임 스탯 막대 + '기본 운 밸런스' 명칭 + 운세 아님 안내",
+      "ok": true
+    },
+    {
+      "name": "FREE 해석: 강점·주의점·오행·5개 영역·키워드",
+      "ok": true
+    },
+    {
+      "name": "Premium: 3개 카드 2,900원 + WHY 미리보기 + 시기 준비 중",
+      "ok": true
+    },
+    {
+      "name": "Premium 클릭 → 바텀시트(결제 화면 아님) + premium_money_click, 관심 버튼 → premium_money_interest",
+      "ok": true
+    },
+    {
+      "name": "관심 표시 이벤트 분리",
+      "ok": true
+    },
+    {
+      "name": "Feedback: 1~5 이모지, 영역 복수 선택, 없음, 공유 의향, 한마디 → 저장 레코드에 개인정보 없음",
+      "ok": true
+    },
+    {
+      "name": "Feedback 제출 → 감사 화면 + feedback_submit + localStorage(개발용) 레코드 검사",
+      "ok": true
+    },
+    {
+      "name": "친구와 배틀하기(모바일): 링크 복사 → 복사된 값이 canonical battle URL(?b=, ~·# 없음) + share_click(mode=battle)",
+      "ok": true
+    },
+    {
+      "name": "배틀 공유: 자동 복사가 모두 실패하면 링크 입력창을 보여 직접 복사 (canonical URL)",
+      "ok": true
+    },
+    {
+      "name": "문자로 배틀 신청: 안내 문구, 잘못된 번호 안내, 문자 본문의 링크 = canonical, 보낸 뒤 번호 지움, 이벤트에 번호 없음",
+      "ok": true
+    },
+    {
+      "name": "결과 하단 Beta 안내 + 콘솔/페이지 오류 없음",
+      "ok": true
+    },
+    {
+      "name": "시간 미상: 결과 표시 + 시간 입력 권유 + 시주 '–'",
+      "ok": true
+    },
+    {
+      "name": "절기 경계 출생(2020-02-04 17:50) → 자연어 경계 안내, 결과는 그대로 표시",
+      "ok": true
+    },
+    {
+      "name": "입춘 당일 + 시간 미상: 연·월주 '?' (임의 선택 없음) + 안내",
+      "ok": true
+    },
+    {
+      "name": "서머타임 overlap 1987-10-11 02:30 → 선택지 표시 → 선택 후 결과",
+      "ok": true
+    },
+    {
+      "name": "1962-01-01 (지원 시작일) 계산 가능",
+      "ok": true
+    },
+    {
+      "name": "새로고침하면 처음 화면으로 (입력 정보 남지 않음)",
+      "ok": true
+    },
+    {
+      "name": "배틀 링크로 입장(새 탭) → 'OOO님의 배틀 신청이 도착했어요' + 도전자 캐릭터 + landing_view(via=battle)",
+      "ok": true
+    },
+    {
+      "name": "친구가 자기 팔자 입력 → 결과 상단에 배틀 결과(VS, 7라운드, 승패, 총점) + result_view.battleOutcome",
+      "ok": true
+    },
+    {
+      "name": "리매치: 친구도 배틀 섹션에서 다시 도전장 (새 canonical 링크, share_click.rematch=true)",
+      "ok": true
+    },
+    {
+      "name": "이미 사이트가 열린 탭에서 배틀 링크로 이동 → 배틀 초대 (새 형식 query / 예전 형식 hash 모두)",
+      "ok": true
+    },
+    {
+      "name": "조작·손상된 배틀 링크 → 배틀 없이 평소 랜딩 + '배틀 링크가 올바르지 않아요' 안내 (새·예전 형식)",
+      "ok": true
+    },
+    {
+      "name": "320px: 랜딩·입력·결과·배틀 결과 모두 가로 넘침 없음",
+      "ok": true
+    },
+    {
+      "name": "데스크톱 결과: 가로 넘침 없음, 중앙 정렬 카드",
+      "ok": true
+    },
+    {
+      "name": "debug 화면: SajuData·기둥·Signals·Scores·provenance 표시",
+      "ok": true
+    },
+    {
+      "name": "production 빌드(dist)에는 debug 화면·개발 hook 이 없다",
+      "ok": true
+    },
+    {
+      "name": "네트워크: 생년월일·출생시간·성별·전화번호·기둥이 어떤 요청에도 실리지 않음",
+      "ok": true
+    }
+  ],
+  "shots": [
+    "docs/screenshots/01-landing-mobile.png",
+    "docs/screenshots/02-input-mobile.png",
+    "docs/screenshots/03-input-error-mobile.png",
+    "docs/screenshots/04-loading-mobile.png",
+    "docs/screenshots/05-result-top-mobile.png",
+    "docs/screenshots/06-stats-mobile.png",
+    "docs/screenshots/07-free-interpretation-mobile.png",
+    "docs/screenshots/08-premium-mobile.png",
+    "docs/screenshots/09-premium-sheet-mobile.png",
+    "docs/screenshots/10-feedback-mobile.png",
+    "docs/screenshots/11-feedback-done-mobile.png",
+    "docs/screenshots/12-battle-send-mobile.png",
+    "docs/screenshots/13-result-bottom-mobile.png",
+    "docs/screenshots/14-time-unknown-mobile.png",
+    "docs/screenshots/15-boundary-notice-mobile.png",
+    "docs/screenshots/16-dst-overlap-choice-mobile.png",
+    "docs/screenshots/21-battle-invite-mobile.png",
+    "docs/screenshots/22-battle-result-mobile.png",
+    "docs/screenshots/23-battle-result-320.png",
+    "docs/screenshots/17-landing-desktop.png",
+    "docs/screenshots/18-result-desktop.png",
+    "docs/screenshots/19-premium-desktop.png",
+    "docs/screenshots/20-debug-desktop.png"
+  ],
+  "pageErrors": []
+}

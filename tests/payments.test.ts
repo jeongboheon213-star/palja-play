@@ -3,7 +3,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
-import { chartKeyFor, confirmPayment, createOrder, findEntitlement, normalizePurchaseCode, recordFailure, refundOrder, serverPrice } from "../src/server/payments/service";
+import { chartKeyFor, confirmPayment, createOrder, findEntitlement, normalizePurchaseCode, recordFailure, refundOrder, refundUnopenedOrder, serverPrice } from "../src/server/payments/service";
+import { openPremiumReport } from "../src/server/premium/access";
 import { buildPremiumReport, NEGATIVE_SIGNAL_IDS } from "../src/server/premium/report";
 import { DETAIL_COPY } from "../src/server/premium/detailCopy";
 import { paymentsConfig, newPurchaseCode } from "../api-lib/env";
@@ -18,7 +19,7 @@ class FakeRepo implements OrderRepo {
   failNext: "insert" | "get" | "transition" | "paid" | null = null;
   async insert(o: NewOrder) {
     if (this.failNext === "insert") { this.failNext = null; throw new Error("down"); }
-    this.rows.set(o.order_id, { ...o, payment_key: null, method: null, failure_code: null, failure_message: null, approved_at: null });
+    this.rows.set(o.order_id, { ...o, payment_key: null, method: null, failure_code: null, failure_message: null, approved_at: null, content_opened_at: null });
   }
   async get(id: string) {
     if (this.failNext === "get") { this.failNext = null; throw new Error("down"); }
@@ -26,6 +27,17 @@ class FakeRepo implements OrderRepo {
   }
   async findByPurchaseCodeHash(h: string) {
     return [...this.rows.values()].find((r) => r.purchase_code_hash === h) ?? null;
+  }
+  async openContent(id: string, code: string, chart: string, product: string, mode: string) {
+    const row = this.rows.get(id);
+    if (!row || row.status !== "PAID" || row.purchase_code_hash !== code || row.chart_key !== chart || row.product_id !== product || row.toss_mode !== mode) return null;
+    const next = { ...row, content_opened_at: row.content_opened_at ?? "2026-10-05T10:00:00Z" };
+    this.rows.set(id, next); return next;
+  }
+  async claimUnopenedRefund(id: string, code: string, chart: string, product: string, mode: string) {
+    const row = this.rows.get(id);
+    if (!row || !["PAID", "REFUND_REQUESTED"].includes(row.status) || row.content_opened_at || row.purchase_code_hash !== code || row.chart_key !== chart || row.product_id !== product || row.toss_mode !== mode) return null;
+    return this.transition(id, ["PAID", "REFUND_REQUESTED"], { status: "REFUND_REQUESTED" });
   }
   async transition(id: string, from: readonly OrderStatus[], patch: OrderPatch) {
     if (this.failNext === "transition" || (this.failNext === "paid" && patch.status === "PAID")) {
@@ -40,6 +52,93 @@ class FakeRepo implements OrderRepo {
     return next;
   }
 }
+
+async function paidSetup() {
+  const s = setup(); const o = await order(s);
+  s.toss.authorize("pk_open", o.orderId, 2900);
+  await confirmPayment(s.deps, { paymentKey: "pk_open", orderId: o.orderId, amount: 2900 });
+  const input = { purchaseCode: o.purchaseCode, productId: "premium_money", signalIds: moneySignals(), openContent: true };
+  return { ...s, o, input };
+}
+test("confirm does not mark provided; explicit open records once and re-open preserves time", async () => {
+  const s = await paidSetup();
+  assert.equal(s.repo.rows.get(s.o.orderId)!.content_opened_at, null);
+  const denied = await openPremiumReport(s.deps, { ...s.input, openContent: false });
+  assert.equal(denied.ok, false);
+  assert.equal(s.repo.rows.get(s.o.orderId)!.content_opened_at, null);
+  const first = await openPremiumReport(s.deps, s.input);
+  const second = await openPremiumReport(s.deps, s.input);
+  assert.ok(first.ok && second.ok);
+  if (first.ok && second.ok) assert.equal(first.body.contentOpenedAt, second.body.contentOpenedAt);
+});
+test("recording failure or revoked permission never returns paid body", async () => {
+  const s = await paidSetup();
+  s.repo.openContent = async () => { throw new Error("down"); };
+  const failed = await openPremiumReport(s.deps, s.input);
+  assert.equal(failed.ok, false); if (!failed.ok) assert.equal(failed.status, 503);
+  assert.equal("body" in failed, false);
+  assert.equal(s.repo.rows.get(s.o.orderId)!.content_opened_at, null);
+  s.repo.openContent = async () => null; // refunded/rotated between lookup and row lock
+  const revoked = await openPremiumReport(s.deps, s.input);
+  assert.equal(revoked.ok, false); assert.equal("body" in revoked, false);
+});
+test("unopened customer cancellation works, opened orders retain administrator exception route", async () => {
+  const unopened = await paidSetup();
+  const result = await refundUnopenedOrder(unopened.deps, unopened.input);
+  assert.ok(result.ok);
+  assert.ok((await refundUnopenedOrder(unopened.deps, unopened.input)).ok, "idempotent");
+  assert.equal((await openPremiumReport(unopened.deps, unopened.input)).ok, false);
+  const opened = await paidSetup();
+  await openPremiumReport(opened.deps, opened.input);
+  assert.equal((await refundUnopenedOrder(opened.deps, opened.input)).ok, false);
+  assert.ok((await refundOrder(opened.deps, { orderId: opened.o.orderId, reason: "중복 결제 예외" })).ok);
+  assert.equal((await openPremiumReport(opened.deps, opened.input)).ok, false);
+});
+test("refund locks report while Toss is pending; failed final storage resumes safely", async () => {
+  const s = await paidSetup();
+  const cancel = s.toss.cancel.bind(s.toss);
+  s.toss.cancel = async (input) => {
+    assert.equal(s.repo.rows.get(s.o.orderId)!.status, "REFUND_REQUESTED");
+    assert.equal((await openPremiumReport(s.deps, s.input)).ok, false);
+    const response = await cancel(input);
+    s.repo.failNext = "transition";
+    return response;
+  };
+  assert.equal((await refundUnopenedOrder(s.deps, s.input)).ok, false);
+  assert.equal(s.repo.rows.get(s.o.orderId)!.status, "REFUND_REQUESTED");
+  s.toss.cancel = cancel;
+  assert.ok((await refundUnopenedOrder(s.deps, s.input)).ok);
+  assert.equal(s.repo.rows.get(s.o.orderId)!.status, "REFUNDED");
+});
+test("uncertain cancel response remains locked, partial cancel cannot claim REFUNDED", async () => {
+  const s = await paidSetup();
+  s.toss.cancel = async () => ({ ok: false, httpStatus: 0, code: "NETWORK_ERROR", message: "" });
+  assert.equal((await refundUnopenedOrder(s.deps, s.input)).ok, false);
+  assert.equal(s.repo.rows.get(s.o.orderId)!.status, "REFUND_REQUESTED");
+  assert.equal((await openPremiumReport(s.deps, s.input)).ok, false);
+  s.toss.cancel = async () => ({ ok: true, payment: { orderId: s.o.orderId, paymentKey: "pk_open", status: "PARTIAL_CANCELED", totalAmount: 2900, method: null, approvedAt: null } });
+  assert.equal((await refundUnopenedOrder(s.deps, s.input)).ok, false);
+  assert.equal(s.repo.rows.get(s.o.orderId)!.status, "REFUND_REQUESTED");
+});
+test("simultaneous open and customer refund cannot both succeed", async () => {
+  for (const refundFirst of [true, false]) {
+    const s = await paidSetup();
+    const results = refundFirst
+      ? await Promise.all([refundUnopenedOrder(s.deps, s.input), openPremiumReport(s.deps, s.input)])
+      : await Promise.all([openPremiumReport(s.deps, s.input), refundUnopenedOrder(s.deps, s.input)]);
+    assert.equal(results.filter((r) => r.ok).length, 1);
+  }
+});
+test("wrong code/product/chart cannot cancel; code reissue revokes old capability", async () => {
+  const s = await paidSetup();
+  for (const input of [{ ...s.input, purchaseCode: "AAAA-BBBB-CCCC-DDDD" }, { ...s.input, signalIds: ["wealth.jae.strong"] }, { ...s.input, productId: "premium_love" }]) {
+    assert.equal((await refundUnopenedOrder(s.deps, input)).ok, false);
+  }
+  assert.equal(s.toss.calls.filter((c) => c.startsWith("cancel:")).length, 0);
+  await s.repo.transition(s.o.orderId, ["PAID"], { purchase_code_hash: sha256("AAAABBBBCCCCDDDD") });
+  assert.equal((await openPremiumReport(s.deps, s.input)).ok, false);
+  assert.ok((await openPremiumReport(s.deps, { ...s.input, purchaseCode: "AAAA-BBBB-CCCC-DDDD" })).ok);
+});
 
 /** 토스 흉내: 멱등키가 같으면 첫 응답을 그대로 돌려준다 (공식 문서 동작) */
 class FakeToss implements TossClient {

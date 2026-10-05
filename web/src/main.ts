@@ -2,11 +2,12 @@
 // 화면에 쓰는 사주 결과는 전부 엔진 결과다 (가짜 데이터 없음). 사주 계산에 난수를 쓰지 않는다 (UUID 는 레코드 구분용, runtime.ts 참고).
 
 import { computeBetaResult, type BetaResult } from "../../src/lib/engine";
+import { tiersForScores, type TierResult } from "../../src/lib/tier";
 import { validateSajuInput } from "../../src/lib/validation";
 import { toResultView, RESULT_ERROR_TEXT, type ResultView, type PremiumCardView } from "../../src/lib/ui/resultView";
 import { deriveSignals } from "../../src/lib/interpretation";
 import { PREMIUM_SPECS } from "../../src/lib/engine";
-import { PAYMENTS_ENABLED, PAYMENTS_MODE, startCheckout, handlePaymentReturn, fetchReport, findStoredPurchase, rememberRestoredPurchase, type PremiumReport, type StoredPurchase } from "./payments";
+import { PAYMENTS_ENABLED, PAYMENTS_MODE, startCheckout, handlePaymentReturn, fetchReport, cancelUnopenedPurchase, findStoredPurchase, rememberRestoredPurchase, type PremiumReport, type StoredPurchase } from "./payments";
 import { battleCardFrom, characterById, compareBattle, sanitizeNickname, withJosa, normalizeKoreanMobile, buildSmsUri, NICKNAME_MAX, type BattleCard } from "../../src/lib/battle/battle";
 import { battleFromLocation, createBattleShare, type BattleShare } from "../../src/lib/battle/share";
 import { copyText, hasWebShare, isMobileDevice, qrSvg, shareKakao, KAKAO_ENABLED } from "./shareTools";
@@ -211,6 +212,7 @@ function list(cls: string, items: readonly string[]): HTMLElement {
 
 function renderResult(c: Current): void {
   const v = c.view;
+  const tiers = tiersForScores(battleCardFrom(c.result.free, null).scores);
   const root = $("#s-result");
   root.replaceChildren(h("div", { class: "result" },
     h("p", { style: "margin-top:6px;text-align:center" }, "🎉 당신의 팔자 캐릭터가 완성됐어요"),
@@ -223,6 +225,13 @@ function renderResult(c: Current): void {
       h("span", { class: "el" }, v.character.elementLabel),
     ),
     challenger ? renderBattleResult(c, challenger) : null,
+    h("section", { class: "box", id: "palja-tier", "aria-label": "내 팔자 티어" },
+      h("h2", {}, "🏆 내 팔자 티어"),
+      h("p", { class: "d", style: "font-size:30px" }, `${tiers.total.tier} TIER`),
+      h("p", {}, tiers.total.label),
+      h("p", {}, `TOP 능력치 · ${v.stats.find((s) => s.key === tiers.topStat.stat)!.label} ${tiers.topStat.tier}`),
+      h("p", { class: "mute small" }, tiers.topStat.label),
+      h("p", { class: "mute small" }, "PLAY 계산 엔진의 고정 표본과 비교한 재미용 지표예요. 실제 인구통계가 아니며, 같은 점수는 같은 등급이에요.")),
     h("p", { class: "hint" }, "나와 얼마나 비슷한지 내려가면서 확인해보세요 👇"),
     v.notices.map((n) => h("div", { class: "notice" }, n)),
 
@@ -379,6 +388,7 @@ function openSheet(p: PremiumCardView): void {
     buy.disabled = false;
     buy.textContent = `${PAYMENTS_MODE === "test" ? "테스트 결제하기" : "결제하기"} · ${p.priceLabel}`;
     $("#sheet-owned").hidden = !findStoredPurchase(p.productId, productSignalIds(current, p.productId));
+    $("#sheet-cancel").hidden = $("#sheet-owned").hidden;
     ($("#sheet-code") as HTMLInputElement).value = "";
   } else {
     const btn = $<HTMLButtonElement>("#sheet-interest");
@@ -431,7 +441,12 @@ $("#sheet-buy").addEventListener("click", async () => {
 $("#sheet-owned").addEventListener("click", async () => {
   if (!sheetProduct || !current) return;
   const owned = findStoredPurchase(sheetProduct.productId, productSignalIds(current, sheetProduct.productId));
-  if (!owned) return;
+  if (!owned) {
+    $("#sheet-err").textContent = "이 기기에 유효한 구매 기록이 없어요. 취소한 구매는 열 수 없으며, 다른 구매는 구매 코드로 확인해 주세요.";
+    $("#sheet-owned").hidden = true;
+    $("#sheet-cancel").hidden = true;
+    return;
+  }
   const r = await fetchReport(owned.purchaseCode, owned.productId, owned.signalIds);
   if (!r.ok) {
     $("#sheet-err").textContent = r.message;
@@ -454,6 +469,24 @@ $("#sheet-restore").addEventListener("click", async () => {
   closeSheet();
   renderReport(r.report, purchase);
 });
+async function cancelFromSheet(useCode: boolean): Promise<void> {
+  if (!sheetProduct || !current) return;
+  const productId = sheetProduct.productId;
+  const signalIds = productSignalIds(current, productId);
+  const purchase = useCode ? { orderId: "restored", productId, signalIds, characterName: current.view.character.name, purchaseCode: ($("#sheet-code") as HTMLInputElement).value.trim() }
+    : findStoredPurchase(productId, signalIds);
+  if (!purchase) return;
+  const result = await cancelUnopenedPurchase(purchase);
+  if (result.ok) {
+    $("#sheet-owned").hidden = true;
+    $("#sheet-cancel").hidden = true;
+    $("#sheet-err").textContent = "구매 취소가 완료됐어요. 취소된 구매의 리포트는 열 수 없어요.";
+    toast("구매 취소가 완료됐어요.");
+  }
+  else $("#sheet-err").textContent = result.message;
+}
+$("#sheet-cancel").addEventListener("click", () => void cancelFromSheet(false));
+$("#sheet-code-cancel").addEventListener("click", () => void cancelFromSheet(true));
 
 // ── Premium 리포트 화면 (서버 승인 후에만) ──────────────────────
 function renderReport(report: PremiumReport, purchase: StoredPurchase | null, notice?: string): void {
@@ -507,7 +540,34 @@ async function handleReturnIfAny(): Promise<void> {
   show("s-loading");
   $("#steps").replaceChildren(h("li", { class: "now" }, "결제를 확인하고 있어요"));
   const out = await handlePaymentReturn();
-  if (out.kind === "paid") return renderReport(out.report, out.purchase);
+  if (out.kind === "paid") {
+    const purchase = out.purchase;
+    const error = h("p", { role: "alert", class: "err" });
+    const open = h("button", { class: "btn", id: "paid-open-report", type: "button", onclick: async () => {
+      (open as HTMLButtonElement).disabled = true;
+      const result = await fetchReport(purchase.purchaseCode, purchase.productId, purchase.signalIds);
+      if (result.ok) renderReport(result.report, purchase);
+      else { error.textContent = result.message; (open as HTMLButtonElement).disabled = false; }
+    } }, "리포트 열기");
+    const cancel = h("button", { class: "btn ghost", id: "paid-cancel-unopened", type: "button", onclick: async () => {
+      (cancel as HTMLButtonElement).disabled = true;
+      (open as HTMLButtonElement).disabled = true;
+      const result = await cancelUnopenedPurchase(purchase);
+      if (result.ok) { show("s-landing"); toast("구매 취소가 완료됐어요."); }
+      else { error.textContent = result.message; (cancel as HTMLButtonElement).disabled = false; (open as HTMLButtonElement).disabled = false; }
+    } }, "아직 열지 않은 구매 취소");
+    $("#s-report").replaceChildren(h("div", { class: "result", id: "paid-unopened" },
+      h("h2", {}, "결제가 완료됐어요"), h("p", {}, "아직 리포트 본문을 제공하지 않았어요."),
+      h("p", {}, `구매 코드: ${purchase.purchaseCode}`),
+      h("p", { class: "notice" }, "리포트 열기를 누르면 본문이 즉시 제공되고 최초 제공 시각이 기록돼요. 열람 이후 취소 요청은 고객 문의로 확인해 주세요. 결제 오류·중복 결제·콘텐츠 미제공·서비스 오류 등 필요한 환불은 별도로 검토해요."),
+      open, cancel, error));
+    return show("s-report");
+  }
+  if (out.kind === "confirm-pending") {
+    $("#s-report").replaceChildren(h("div", { class: "result" }, h("h2", {}, "결제 확인 중"),
+      h("p", {}, out.message), h("button", { class: "btn", type: "button", onclick: () => location.reload() }, "다시 확인하기")));
+    return show("s-report");
+  }
   if (out.kind === "paid-no-report") {
     $("#s-report").replaceChildren(
       h(
@@ -625,7 +685,7 @@ function renderFeedback(c: Current): HTMLElement {
     h("p", { class: "q" }, "한마디 남겨주세요 (선택)"),
     comment,
     submit,
-    h("p", { class: "mute small", style: "margin-top:8px" }, "생년월일·출생 시간은 피드백과 함께 저장하지 않아요."),
+    h("p", { class: "mute small", style: "margin-top:8px" }, "생년월일·출생 시간은 자동으로 저장하지 않아요. 한마디에는 연락처·구매 코드·결제 키 등 개인정보를 적지 마세요."),
     // 개발 빌드 전용 안내 (__PALJA_ENV__ 비교라 production 빌드에서는 문구째 제거된다)
     __PALJA_ENV__ === "development" && rt.feedback.kind === "remote"
       ? h("p", { class: "devnote" }, "개발 환경: 피드백이 Supabase 에 개발용(source=development)으로 저장돼요.")
@@ -694,8 +754,9 @@ function renderBattleResult(c: Current, friend: BattleCard): HTMLElement {
   const res = compareBattle(me, friend);
   const fch = characterById(friend.characterId)!;
   const fname = friend.nickname ?? "친구";
-  const side = (emoji: string, name: string, who: string, cls: string) =>
-    h("div", { class: `vs-side ${cls}` }, h("div", { class: "em", "aria-hidden": "true" }, emoji), h("b", {}, name), h("span", {}, who));
+  const side = (emoji: string, name: string, who: string, cls: string, tier: TierResult) =>
+    h("div", { class: `vs-side ${cls}` }, h("div", { class: "em", "aria-hidden": "true" }, emoji), h("b", {}, name), h("span", {}, who),
+      h("b", { class: "battle-tier" }, `${tier.tier} TIER`), h("span", { class: "small" }, tier.label));
   return h(
     "section",
     { class: `battle-result ${res.outcome}`, id: "battle-result", "aria-label": "배틀 결과" },
@@ -703,9 +764,9 @@ function renderBattleResult(c: Current, friend: BattleCard): HTMLElement {
     h(
       "div",
       { class: "vs" },
-      side(c.view.character.emoji, c.view.character.name, "나", "me"),
+      side(c.view.character.emoji, c.view.character.name, "나", "me", tiersForScores(me.scores).total),
       h("div", { class: "vs-mid" }, h("b", {}, `${res.myWins} : ${res.friendWins}`), h("span", {}, "VS")),
-      side(fch.emoji, fch.name, fname, "friend"),
+      side(fch.emoji, fch.name, fname, "friend", tiersForScores(friend.scores).total),
     ),
     h("h2", { class: "battle-headline" }, res.headline),
     h("p", { style: "text-align:center" }, res.comment),

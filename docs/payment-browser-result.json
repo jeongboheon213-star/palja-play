@@ -1,0 +1,45 @@
+{
+  "mode": "local fake APIs, no Toss/Supabase",
+  "results": [
+    {
+      "name": "confirm does not request report",
+      "ok": true
+    },
+    {
+      "name": "open and unopened cancellation buttons present",
+      "ok": true
+    },
+    {
+      "name": "success URL stripped after confirmation",
+      "ok": true
+    },
+    {
+      "name": "click explicitly requests content",
+      "ok": true
+    },
+    {
+      "name": "rate limit error shown and retry enabled",
+      "ok": true
+    },
+    {
+      "name": "cancel never requests report",
+      "ok": true
+    },
+    {
+      "name": "cancel hides stale purchase actions and explains revoked access",
+      "ok": true
+    },
+    {
+      "name": "cancel preserves unrelated restored purchases",
+      "ok": true
+    },
+    {
+      "name": "missing local purchase explains action instead of silent return",
+      "ok": true
+    },
+    {
+      "name": "uncertain confirmation cannot open content and retains retry URL",
+      "ok": true
+    }
+  ]
+}

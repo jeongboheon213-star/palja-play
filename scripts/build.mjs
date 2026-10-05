@@ -7,6 +7,7 @@
 //
 // 공유 문구의 공개 URL 은 빌드 시 PALJA_PUBLIC_URL 환경 변수로 넣는다 (없으면 링크 없이 공유).
 import * as esbuild from "esbuild";
+import { writeAdsenseFiles } from "./adsense-files.mjs";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -61,8 +62,10 @@ const supabaseLabel = supabaseUrl && supabaseAnonKey ? `설정됨 (${new URL(sup
 
 // 결제 (토스페이먼츠). 브라우저에는 결제 모드와 "클라이언트 키(test_ck/live_ck)"만 들어간다.
 // TOSS_SECRET_KEY · SUPABASE_SERVICE_ROLE_KEY 는 서버 함수(api/)에서만 읽고 여기서는 절대 읽지 않는다.
-const paymentsMode = noRemote ? "off" : process.env.PALJA_PAYMENTS_MODE || "off";
-const tossClientKey = paymentsMode === "off" ? null : process.env.PALJA_TOSS_CLIENT_KEY || null;
+const paymentUiTest = process.argv.includes("--payment-ui-test");
+if (paymentUiTest && (!dev || !noRemote)) throw new Error("Payment UI fixture requires --dev --no-remote");
+const paymentsMode = paymentUiTest ? "test" : noRemote ? "off" : process.env.PALJA_PAYMENTS_MODE || "off";
+const tossClientKey = paymentUiTest ? "test_ck_browser_fixture" : paymentsMode === "off" ? null : process.env.PALJA_TOSS_CLIENT_KEY || null;
 if (!["off", "test", "live"].includes(paymentsMode)) throw new Error(`PALJA_PAYMENTS_MODE 는 off | test | live 중 하나여야 합니다: ${paymentsMode}`);
 if (tossClientKey && /_(g?sk)_/.test(tossClientKey)) throw new Error("PALJA_TOSS_CLIENT_KEY 에 시크릿 키(…_sk_…)가 들어 있습니다. 브라우저에는 클라이언트 키(…_ck_…)만 넣으세요.");
 if (paymentsMode === "test" && tossClientKey && !/^test_(g?ck)_/.test(tossClientKey)) throw new Error("TEST 모드에는 test_ck_ 로 시작하는 클라이언트 키만 쓸 수 있습니다.");
@@ -77,7 +80,7 @@ const paymentsLabel = paymentsMode === "off" || !tossClientKey ? "off (준비 �
 
 rmSync(outdir, { recursive: true, force: true });
 mkdirSync(`${outdir}/assets`, { recursive: true });
-cpSync("web/index.html", `${outdir}/index.html`);
+writeAdsenseFiles(outdir, readFileSync("web/index.html", "utf8"), dev || noRemote ? null : process.env.PALJA_ADSENSE_PUBLISHER_ID);
 if (dev) cpSync("web/debug.html", `${outdir}/debug.html`);
 
 const options = {
