@@ -1,5 +1,14 @@
 # 인계 문서 (HANDOFF) — 2026-10-05 기준
 
+## 현재 인계 — 피드백 관리자 (아래의 과거 기록보다 우선)
+
+- 사용자는 Cloudflare 공개 전환과 현재 작업 브랜치 배포를 승인했다. Production은 Cloudflare Pages `palja-play`, Production branch `chatgpt/payment-tier-phase2`, 공개 주소 https://paljaplay.com 및 https://www.paljaplay.com 이다. main 병합 및 LIVE 활성화는 여전히 승인되지 않았다.
+- dashboard-owned 환경 변수 복구 후 실제 TEST 결제·미열람 취소·취소 코드 차단·새 구매 리포트 열람·코드 복구를 사용자가 확인했다. Supabase SQL은 이미 완료했으므로 재실행 요구 금지. wrangler.json/jsonc를 추가해 dashboard 변수를 덮어쓰지 말 것.
+- 두 공개 도메인 Active/SSL 확인 및 접속 성공 사용자 보고. Spaceship 네임서버는 deb.ns.cloudflare.com / lou.ns.cloudflare.com. AdSense meta 소유권 확인·검토 요청·Google CMP 선택 저장을 사용자 화면에서 확인했다. 광고 승인 완료는 아니며 광고 스크립트는 추가하지 않았다.
+- 사용자 요청에 따라 `/admin/` 피드백 통계·검색·CSV와 `/api/admin/feedback` 읽기 전용 API를 추가했다. Cloudflare Access RS256 인증 + 본인 이메일 허용 + 관리자 호스트 확인. 미설정/익명/public/pages.dev 관리자 접근은 403 차단.
+- **다음 사용자 단계:** Cloudflare Zero Trust에서 admin.paljaplay.com 전체를 본인 이메일만 허용하는 Access 앱으로 설정한다. 팀 도메인/AUD와 ADMIN_HOST/ADMIN_EMAILS를 Pages production 변수로 추가하고 admin custom domain·재배포 후 실제 DB 읽기를 검증한다. `docs/ADMIN_FEEDBACK.md` 참고. 아직 관리자 인증 설정 및 실제 관리자 DB 조회는 확인하지 않았다.
+- 검증: check 타입/API/255개 테스트, 로컬 Edge 합성 데이터 화면 검증 13개(1280/390/320 폭, HTML escape, 필터·빈 데이터·오류). Cloudflare 빌드 PASS. 실제 통계로 합성 데이터를 보고하지 않는다. 새 패키지/SQL 없음.
+
 최신 추가: 사용자가 Preview TEST 결제·열람·구매 코드 복구·미열람 취소 성공을 보고했다. 취소 후 무반응 안내와 복구 구매별 삭제 범위 보정 완료, 로컬 245개/모의 브라우저 10개 통과. 이전 키 입력 대기 설명은 과거 기록이다. 다음은 수정 Preview 확인, 피드백 공개 키 연결(사용자 직접), 도메인 선택이다. docs/FEEDBACK_ANALYSIS.md와 docs/DOMAIN_ADSENSE_PLAN.md 참고. Production/LIVE 변경 없음.
 
 ## 최신 Phase 2 인계 (아래의 이전 기록보다 우선)

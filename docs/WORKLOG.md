@@ -344,3 +344,9 @@
 
 ### Cloudflare dashboard variable override fix
 - Actual deployment log dac504d3 reported no build variables and Supabase unset/payment off; deployed API also PAYMENTS_DISABLED. Wrangler configuration made repository config authoritative over dashboard text settings. Removed wrangler.jsonc to restore dashboard-owned variables. Runtime compatibility settings are retained from last deployment per Cloudflare docs; verify nodejs_compat in dashboard. User credentials remain dashboard-only. Actual new deployment verification pending.
+
+### Feedback administrator dashboard
+- User confirmed restored Cloudflare deployment: actual TEST cancellation blocks old purchase code, fresh purchase opens report and restores by code. Both paljaplay.com and www are Active/SSL and open. AdSense ownership verified, review requested, Google CMP saved; approval still pending.
+- Added read-only feedback administrator at /admin/ with count, average, 4/5 ratio, KST daily trend, area selections, share intent, keyword mentions, latest comments, version/score/search filters and safe CSV export. No external AI transmission; sample size and 10,000-row limit are disclosed. Long daily tables scroll within card.
+- Access JWT RS256 signature/issuer/audience/time/email and dedicated host verified on server before static page or database; direct public/pages.dev and spoofed email fail closed. Server credentials remain private. HTML escaped, CSV formula prefixes neutralized, no-store responses. No SQL or npm packages added.
+- check 255 tests and type/API builds; Cloudflare build; local fixture Edge UI 13 assertions at desktop/390/320 widths. Actual authenticated production DB read requires user's Access setup and is not claimed verified. Setup in ADMIN_FEEDBACK.md. Current branch deployment authorized; main merge and LIVE remain off.

@@ -4,6 +4,8 @@ import { POST as fail } from "../api-src/payments/fail";
 import { POST as refund } from "../api-src/payments/refund-unopened";
 import { POST as report } from "../api-src/premium/report";
 import { json } from "./env";
+import { adminIdentity } from "./admin-access";
+import { adminFeedback } from "./admin-feedback";
 
 type Env = Record<string, unknown> & { ASSETS: { fetch(request: Request): Promise<Response> } };
 const routes = new Map([
@@ -15,6 +17,17 @@ const routes = new Map([
 export default {
   async fetch(request: Request, bindings: Env): Promise<Response> {
     const path = new URL(request.url).pathname;
+    if (path === "/admin" || path.startsWith("/admin/") || path.startsWith("/api/admin/")) {
+      const env = Object.fromEntries(Object.entries(bindings).filter(([, v]) => typeof v === "string")) as Record<string, string>;
+      if (!await adminIdentity(request, env)) return json(403, { message: "관리자 인증이 필요합니다. 관리자 전용 주소에서 이메일 인증을 완료해 주세요." });
+      if (request.method !== "GET") return json(405, { message: "허용되지 않은 요청입니다." });
+      if (path === "/api/admin/feedback") return adminFeedback(request, env);
+      if (path.startsWith("/api/")) return json(404, { code: "NOT_FOUND" });
+      const response = await bindings.ASSETS.fetch(request);
+      const headers = new Headers(response.headers);
+      headers.set("Cache-Control", "no-store");
+      return new Response(response.body, { status: response.status, headers });
+    }
     if (!path.startsWith("/api/")) return bindings.ASSETS.fetch(request);
     const handler = routes.get(path);
     if (!handler) return json(404, { code: "NOT_FOUND" });

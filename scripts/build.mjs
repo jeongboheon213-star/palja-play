@@ -80,11 +80,13 @@ const paymentsLabel = paymentsMode === "off" || !tossClientKey ? "off (준비 �
 
 rmSync(outdir, { recursive: true, force: true });
 mkdirSync(`${outdir}/assets`, { recursive: true });
+mkdirSync(`${outdir}/admin`, { recursive: true });
+cpSync("web/admin.html", `${outdir}/admin/index.html`);
 writeAdsenseFiles(outdir, readFileSync("web/index.html", "utf8"), dev || noRemote ? null : process.env.PALJA_ADSENSE_PUBLISHER_ID);
 if (dev) cpSync("web/debug.html", `${outdir}/debug.html`);
 
 const options = {
-  entryPoints: dev ? { app: "web/src/main.ts", debug: "web/src/debug.ts" } : { app: "web/src/main.ts" },
+  entryPoints: dev ? { app: "web/src/main.ts", admin: "web/src/admin.ts", debug: "web/src/debug.ts" } : { app: "web/src/main.ts", admin: "web/src/admin.ts" },
   outdir: `${outdir}/assets`,
   absWorkingDir: process.cwd(),
   bundle: true,

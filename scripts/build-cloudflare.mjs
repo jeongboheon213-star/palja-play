@@ -8,4 +8,4 @@ await esbuild.build({
   external: ["node:*"], legalComments: "none",
 });
 // Static requests stay on Pages' static serving path, avoiding function quota use.
-writeFileSync("dist/_routes.json", JSON.stringify({ version: 1, include: ["/api/*"], exclude: [] }));
+writeFileSync("dist/_routes.json", JSON.stringify({ version: 1, include: ["/api/*", "/admin", "/admin/*"], exclude: [] }));
