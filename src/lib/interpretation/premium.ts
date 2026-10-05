@@ -19,6 +19,8 @@ export interface PremiumProductSpec {
   readonly paymentEnabled: false;
   readonly domains: readonly Domain[];
   readonly clickEvent: string | null;
+  readonly interestEvent: string | null;
+  readonly hook: string;
   readonly comingSoonMessage: string;
 }
 

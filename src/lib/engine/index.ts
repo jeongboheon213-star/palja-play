@@ -46,6 +46,8 @@ export const PREMIUM_SPECS: readonly PremiumProductSpec[] = Object.freeze(
       paymentEnabled: p.paymentEnabled,
       domains: p.domains,
       clickEvent: p.clickEvent,
+      interestEvent: p.interestEvent,
+      hook: p.hook,
       comingSoonMessage: PREMIUM_COMING_SOON_MESSAGE,
     });
   }),

@@ -3,8 +3,8 @@
 export type NoticeCode = "BOUNDARY_RISK" | "TIME_UNKNOWN" | "PILLAR_UNCERTAIN" | "PARTIAL_DATA";
 
 export const NOTICE_TEXT: Readonly<Record<NoticeCode, string>> = Object.freeze({
-  BOUNDARY_RISK: "절기 경계에 가까운 출생 시각으로, Beta 계산 기준에 따라 결과가 달라질 수 있습니다.",
-  TIME_UNKNOWN: "태어난 시간을 몰라 시주(時柱)는 빼고 해석했어요.",
+  BOUNDARY_RISK: "출생 시각이 절기 경계와 가까워 Beta 계산 기준에 따라 일부 결과가 달라질 수 있어요.",
+  TIME_UNKNOWN: "태어난 시간 없이 풀었어요. 출생 시간을 입력하면 더 세밀한 결과를 볼 수 있어요.",
   PILLAR_UNCERTAIN: "절기가 바뀌는 날이라 출생 시간 없이는 일부 기둥을 하나로 정할 수 없어요. 확정된 기둥만으로 해석했어요.",
   PARTIAL_DATA: "확정된 글자가 적어 일부 해석은 간단하게 보여 드려요. 태어난 시간을 알면 더 자세해져요.",
 });

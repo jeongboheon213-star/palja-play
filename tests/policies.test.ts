@@ -58,7 +58,7 @@ test("PRODUCTS", () => {
   }
   assert.equal(PRODUCTS.premium_money.name, "재물 심층 리포트");
   assert.equal(PRODUCTS.premium_love.name, "연애 심층 리포트");
-  assert.equal(PRODUCTS.premium_career.name, "직업/사업 심층 리포트");
+  assert.equal(PRODUCTS.premium_career.name, "직업·사업 심층 리포트");
   assert.throws(() => { (PRODUCTS.premium_money as { priceKrw: number }).priceKrw = 1; });
 });
 

@@ -21,7 +21,7 @@ test("상품 설정: 재물/연애/직업·사업 리포트 4,900원, Beta 테�
   assert.deepEqual(PREMIUM_SPECS.map((p) => [p.name, p.priceLabel]), [
     ["재물 심층 리포트", "4,900원"],
     ["연애 심층 리포트", "4,900원"],
-    ["직업/사업 심층 리포트", "4,900원"],
+    ["직업·사업 심층 리포트", "4,900원"],
   ]);
   for (const p of PREMIUM_SPECS) {
     assert.equal(p.betaTestPrice, true);
@@ -36,10 +36,14 @@ test("상품 설정: 재물/연애/직업·사업 리포트 4,900원, Beta 테�
 test("클릭 이벤트: 상품마다 이벤트 이름이 정해져 있고 이벤트 목록에 있다", () => {
   assert.deepEqual(PREMIUM_SPECS.map((p) => p.clickEvent), ["premium_money_click", "premium_love_click", "premium_career_click"]);
   for (const p of Object.values(PRODUCTS)) if (p.clickEvent) assert.ok((EVENT_NAMES as readonly string[]).includes(p.clickEvent));
+  // Phase 8: 단순 클릭과 실제 관심을 구분하는 *_interest 3종 추가
   assert.deepEqual([...EVENT_NAMES], [
     "landing_view", "input_start", "calculation_complete", "result_view", "share_click",
-    "premium_money_click", "premium_love_click", "premium_career_click", "feedback_submit",
+    "premium_money_click", "premium_love_click", "premium_career_click",
+    "premium_money_interest", "premium_love_interest", "premium_career_interest",
+    "feedback_submit",
   ]);
+  assert.deepEqual(PREMIUM_SPECS.map((p) => p.interestEvent), ["premium_money_interest", "premium_love_interest", "premium_career_interest"]);
 });
 
 test("이벤트 속성에서 개인정보로 보이는 키는 제거된다, 메모리 sink 는 쌓기만 한다", () => {
