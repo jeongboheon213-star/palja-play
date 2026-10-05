@@ -350,3 +350,8 @@
 - Added read-only feedback administrator at /admin/ with count, average, 4/5 ratio, KST daily trend, area selections, share intent, keyword mentions, latest comments, version/score/search filters and safe CSV export. No external AI transmission; sample size and 10,000-row limit are disclosed. Long daily tables scroll within card.
 - Access JWT RS256 signature/issuer/audience/time/email and dedicated host verified on server before static page or database; direct public/pages.dev and spoofed email fail closed. Server credentials remain private. HTML escaped, CSV formula prefixes neutralized, no-store responses. No SQL or npm packages added.
 - check 255 tests and type/API builds; Cloudflare build; local fixture Edge UI 13 assertions at desktop/390/320 widths. Actual authenticated production DB read requires user's Access setup and is not claimed verified. Setup in ADMIN_FEEDBACK.md. Current branch deployment authorized; main merge and LIVE remain off.
+
+### Administrator authentication diagnosis (2026-10-06)
+- User confirmed configured AUD and login email match. Actual authenticated request still receives worker 403; root cause remains unconfirmed.
+- Added bounded failure codes for configuration/host/header/claims/time/email/certificate/signature/runtime stages, without exposing token, keys, claim values or exception messages. Authentication remains fail-closed.
+- Type/API checks and 256 tests PASS; Cloudflare build PASS. Production authenticated diagnosis awaits deployed code and user browser result.

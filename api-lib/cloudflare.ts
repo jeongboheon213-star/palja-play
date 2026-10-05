@@ -19,7 +19,8 @@ export default {
     const path = new URL(request.url).pathname;
     if (path === "/admin" || path.startsWith("/admin/") || path.startsWith("/api/admin/")) {
       const env = Object.fromEntries(Object.entries(bindings).filter(([, v]) => typeof v === "string")) as Record<string, string>;
-      if (!await adminIdentity(request, env)) return json(403, { message: "관리자 인증이 필요합니다. 관리자 전용 주소에서 이메일 인증을 완료해 주세요." });
+      let code = "AUTH_CLAIMS";
+      if (!await adminIdentity(request, env, fetch, reason => { code = reason; })) return json(403, { code, message: "관리자 인증을 확인하지 못했습니다. 오류 코드를 관리자에게 알려 주세요." });
       if (request.method !== "GET") return json(405, { message: "허용되지 않은 요청입니다." });
       if (path === "/api/admin/feedback") return adminFeedback(request, env);
       if (path.startsWith("/api/")) return json(404, { code: "NOT_FOUND" });

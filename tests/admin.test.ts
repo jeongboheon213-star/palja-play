@@ -16,6 +16,23 @@ function token(overrides = {}, signer = privateKey) {
   return `${h}.${p}.${sign("RSA-SHA256", Buffer.from(`${h}.${p}`), signer).toString("base64url")}`;
 }
 const request = (jwt: string, host = "admin.example.com") => new Request(`https://${host}/api/admin/feedback`, { headers: { "Cf-Access-Jwt-Assertion": jwt } });
+
+test("auth diagnostics identify failed stages without exposing credentials or accepting invalid tokens", async () => {
+  let reason = "";
+  const report = (code: string) => { reason = code; };
+  assert.equal(await adminIdentity(request(""), env, fetchKeys, report), null);
+  assert.equal(reason, "AUTH_TOKEN_MISSING");
+  assert.equal(await adminIdentity(request(token()), {}, fetchKeys, report), null);
+  assert.equal(reason, "AUTH_CONFIG");
+  assert.equal(await adminIdentity(request(token({ email: "visitor@example.com" })), env, fetchKeys, report), null);
+  assert.equal(reason, "AUTH_EMAIL");
+  const failed = (async () => { throw new Error("private information"); }) as typeof fetch;
+  assert.equal(await adminIdentity(request(token()), env, failed, report), null);
+  assert.equal(reason, "AUTH_CERT_FETCH");
+  reason = "";
+  assert.equal(await adminIdentity(request(token()), env, fetchKeys, report), "owner@example.com");
+  assert.equal(reason, "");
+});
 test("admin auth: signed owner accepted; expired, wrong audience/issuer/email/host and forged signature blocked", async () => {
   assert.equal(await adminIdentity(request(token()), env, fetchKeys), "owner@example.com");
   for (const claims of [{ exp: 1 }, { aud: ["other"] }, { iss: "https://evil.example" }, { email: "visitor@example.com" }, { nbf: Math.floor(Date.now()/1000) + 500 }]) assert.equal(await adminIdentity(request(token(claims)), env, fetchKeys), null);
