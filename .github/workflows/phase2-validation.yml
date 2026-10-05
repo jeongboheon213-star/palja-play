@@ -1,0 +1,24 @@
+name: Phase 2 validation
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - name: Analyze tier reference distribution
+        run: npx tsx scripts/analyze-tier-distribution.ts | tee tier-distribution.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tier-distribution
+          path: tier-distribution.json
