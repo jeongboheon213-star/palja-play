@@ -1,4 +1,4 @@
-// 공용 타입 재노출 (SajuInput, SajuData, Pillar, Element, TenGod, TwelveStage, Relation, Signal, Score, Reading, Policy)
+// 공용 타입 재노출
 export type {
   SajuInput,
   SajuData,

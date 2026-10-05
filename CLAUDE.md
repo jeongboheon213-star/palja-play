@@ -29,14 +29,14 @@ Validation → CalendarProvider → TimeNormalizer → SolarTermProvider → Saj
 - Phase 3B 완료: 24절기 정의 + AlphaSolarTermProvider(internal-alpha, not-verified) + 절기 컨텍스트(시간 미상 → uncertain/NEEDS_BIRTH_TIME_FOR_SOLAR_TERM_DAY). 연주/월주는 아직 없음.
 - 외부 기준 대조(KASI 등): NOT RUN. 확보하면 `tests/fixtures/solar-term-reference.json` 에 넣는다(가짜 데이터 금지).
 - Phase 3C 완료: 네 기둥 (`src/lib/saju/pillars/`), confidence + boundaryRisk, 시간 미상 시주 null.
+- Phase 3D 완료: SajuData(`src/lib/saju/chart/`) 일간·오행·지장간·십성·12운성(unverified, 해석 비연결)·관계. uncertain 기둥은 제외 목록으로.
 - 테스트·tsc 통과 (개수는 docs/WORKLOG.md). 환경 비교: `tests/tools/env-hash*.ts`.
 
 ## 다음: Phase 3C 부터 연속 진행 (docs/BETA_DIRECTION.md 승인됨, 3C→3D→4→5→6 후 통합 보고)
 네 기둥을 각각 독립 함수로(calculateYearPillar/MonthPillar/DayPillar/HourPillar). 연/월주는 SolarTermProvider 결과만 소비한다(절기 계산 코드를 넣지 않는다). 각 결과에 stem/branch/ganji/confidence/evidence/policy 의존성/verification 포함. 일주는 기존 독립 공식과 1930-01-01~2026-10-04 전체 재대조(verified-internally 초과 금지). 이후 3D(십성/12운성/합충형, 해석과 분리), 그 뒤 Signals·점수·FREE/PREMIUM·UI.
 
 ## 명령
-- `npm install` 후 `npm run check` (typecheck + test). Node.js LTS 필요 (Windows: `C:Program Files
-odejs`).
+- `npm install` 후 `npm run check` (typecheck + test). Node.js LTS 필요 (Windows 설치 경로 `C:/Program Files/nodejs`, Git Bash 에서는 PATH 에 추가 필요).
 - 환경 비교: `TZ=UTC npx tsx tests/tools/env-hash.ts` (해시가 TZ/locale과 무관해야 함)
 
 ## 알려진 위험

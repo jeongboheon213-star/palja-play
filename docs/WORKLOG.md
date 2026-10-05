@@ -45,3 +45,19 @@
 
 관찰 (검증 아님)
 - Alpha 제공자의 2024 입춘 = 2024-02-04 08:20:11Z (KST 17:20). 공개 자료 값과 수 분 차이가 있을 수 있어 보이나 실제 KASI 자료로 확인하지 않았다 → Backlog.
+
+## 2026-10-05 — Phase 3D: 기본 사주 데이터
+
+만든 것 (`src/lib/saju/chart/`)
+- `SajuData` (schema 0.2.0): 네 기둥(PillarResult 그대로, confidence/boundaryRisk 포함) + 일간(Day Master) + 오행 개수 + 지장간 + 십성(천간/지지 정기/지장간 각각) + 12운성 + 합충형해파·삼합·반합·방합 + 시간 정보 + provenance.
+- uncertain/unavailable 기둥(후보를 고르지 않은 기둥)과 시간 미상 시주는 오행·십성·관계 계산에서 **제외**하고 `excludedPositions` 에 남긴다.
+- 12운성: `rule: "unverified"`, `inReadings: false` (Signals 가 읽지 않음, 정책 `twelveStagesInReadings=false`).
+- `engine.computeSaju()` → `{ ok, data: SajuData }`. 절입 당일 시간 미상은 오류가 아니라 uncertain 기둥으로 표현.
+- Phase 2 초안 `SajuData`/`TwelveStageField`/`SolarTermRecord` 타입(사용처 없음)은 새 구조로 대체.
+- verification: `hiddenStems`, `fiveElements` 항목 추가, 십성·관계·12운성 메모 갱신. 모두 not-verified (일주만 verified-internally 유지).
+
+테스트 (+12 → 총 126)
+- 십성 표(갑·을·경 일간 전체), 모든 일간에서 10십성 1회씩, 지장간 정기 오행 = 지지 오행, 12운성 장생/건록/제왕 위치와 순열성, 관계 종류별 사례(무기 합·충 없음, 왕지 없는 반합 아님 포함), 시간 미상/입춘 당일 제외 처리, 12운성 비연결, 결정론·동결·입력 비동결.
+
+테스트 변경 기록
+- `policies.test.ts` SCHEMA_VERSION 기대값 0.2.0 으로 갱신.

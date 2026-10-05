@@ -1,7 +1,8 @@
 // 교체 가능한 계층의 인터페이스. 구현은 Phase 3 이후.
 
 import type { Policy, SolarTermProviderId } from "./policies";
-import type { SajuData, SajuInput } from "./types";
+import type { SajuInput } from "./types";
+import type { SajuData } from "./chart/sajuData";
 import type { VerificationLevel } from "./verification";
 
 // ── 절기 제공자 ────────────────────────────────────────────────
@@ -162,17 +163,17 @@ export interface TimeNormalizer {
   normalize(input: SajuInput, policy: Policy, options?: NormalizeOptions): TimeNormalizeResult;
 }
 
+/**
+ * 전체 계산 결과. 절입 당일 시간 미상은 오류가 아니라 SajuData 안의 uncertain 기둥으로 표현한다.
+ * 오류는 시각 자체를 정할 수 없을 때(gap/overlap/범위 밖)만.
+ */
 export type CalculationResult =
   | { readonly ok: true; readonly data: SajuData }
-  | { readonly ok: false; readonly code: CalculationErrorCode; readonly message: string };
+  | { readonly ok: false; readonly code: CalculationErrorCode; readonly message: string; readonly candidates?: readonly TimeCandidate[] };
 
-export type CalculationErrorCode =
-  | "NEEDS_BIRTH_TIME_FOR_SOLAR_TERM_DAY"
-  | "NONEXISTENT_LOCAL_TIME"
-  | "AMBIGUOUS_LOCAL_TIME"
-  | "UNSUPPORTED_INPUT";
+export type CalculationErrorCode = TimeNormalizeErrorCode;
 
 export interface SajuCalculator {
   readonly engineVersion: string;
-  calculate(input: SajuInput, policy: Policy): CalculationResult;
+  calculate(input: SajuInput, policy: Policy, options?: NormalizeOptions): CalculationResult;
 }

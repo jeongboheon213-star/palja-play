@@ -43,6 +43,8 @@ export type RelationKind =
   | "지지해"
   | "지지파"
   | "삼합"
+  /** 삼합 중 왕지를 포함한 두 글자 */
+  | "반합"
   | "방합";
 
 export interface Relation {
@@ -51,48 +53,7 @@ export interface Relation {
   readonly members: readonly (Stem | Branch)[];
 }
 
-/** 절입 계산 근거 기록 (월주 신뢰도 표시용) */
-export interface SolarTermRecord {
-  readonly provider: "alpha" | "verified" | "kasi";
-  readonly verificationStatus: VerificationLevel;
-  /** 기준이 된 절기 시각(UTC, ISO). 실행 시각이 아니라 계산 입력에서 정해지는 값. */
-  readonly termInstantUtc: string;
-  readonly termName: string;
-  readonly minutesFromBoundary: number;
-  readonly boundaryWarning: boolean;
-}
-
-export interface TwelveStageField {
-  readonly rule: "unverified" | "verified";
-  readonly year: TwelveStage;
-  readonly month: TwelveStage;
-  readonly day: TwelveStage;
-  readonly hour: TwelveStage | null;
-}
-
-export interface SajuData {
-  readonly schemaVersion: string;
-  readonly engineVersion: string;
-  readonly input: SajuInput;
-  /** 계산에 쓰인 정책 스냅샷 */
-  readonly policy: Policy;
-  /** 계산 시점의 검증 상태 스냅샷 */
-  readonly verification: VerificationStatus;
-  readonly pillars: {
-    readonly year: Pillar;
-    readonly month: Pillar;
-    readonly day: Pillar;
-    /** 시간 미상이면 null. 추정하지 않는다. */
-    readonly hour: Pillar | null;
-  };
-  readonly dayMaster: Stem;
-  readonly elementCounts: Readonly<Record<Element, number>>;
-  readonly tenGods: Readonly<Partial<Record<PillarPosition, { stem: TenGod | null; branch: TenGod }>>>;
-  /** 계산 필드만 존재. Signals/해석에 연결하지 않는다. */
-  readonly twelveStages: TwelveStageField | null;
-  readonly relations: readonly Relation[];
-  readonly solarTerm: SolarTermRecord;
-}
+// SajuData 는 Phase 3D 에서 정의한다 (./chart/sajuData.ts). 이전 Phase 2 초안 타입은 제거했다.
 
 export type { Policy, VerificationStatus, VerificationLevel };
 

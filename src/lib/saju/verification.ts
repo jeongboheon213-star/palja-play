@@ -28,6 +28,8 @@ export type VerificationItemId =
   | "historicalTimeOffsets"
   | "longitudeCorrection"
   | "jasiPolicy"
+  | "hiddenStems"
+  | "fiveElements"
   | "tenGods"
   | "twelveStages"
   | "relations"
@@ -74,12 +76,14 @@ export const VERIFICATION_STATUS: VerificationStatus = Object.freeze({
     level: "not-verified",
     note: "Alpha 정책은 midnight. 전문가 검토 전.",
   }),
-  tenGods: Object.freeze({ level: "not-verified", note: "미구현." }),
+  hiddenStems: Object.freeze({ level: "not-verified", note: "Phase 3D: 표준 지장간 표(여기·중기·정기). 외부 대조·전문가 검토 전." }),
+  fiveElements: Object.freeze({ level: "not-verified", note: "Phase 3D: confirmed 기둥의 천간+지지 오행 글자 수. 지장간 가중치 없음(서비스 단순화)." }),
+  tenGods: Object.freeze({ level: "not-verified", note: "Phase 3D: 오행 생극 + 음양 규칙, 지지는 정기 기준. 외부 대조·전문가 검토 전." }),
   twelveStages: Object.freeze({
     level: "not-verified",
-    note: "계산 필드만 두며 rule=unverified. 해석에 연결하지 않음.",
+    note: "Phase 3D: 일간 기준 계산 필드만 두며 rule=unverified. Signals/해석에 연결하지 않음.",
   }),
-  relations: Object.freeze({ level: "not-verified", note: "미구현." }),
+  relations: Object.freeze({ level: "not-verified", note: "Phase 3D: 천간합·충, 지지 육합·충·형·해·파·삼합·반합·방합. confirmed 기둥끼리만. 외부 대조 전." }),
   scoring: Object.freeze({ level: "not-verified", note: "미구현." }),
   interpretation: Object.freeze({ level: "not-verified", note: "미구현." }),
 }) as VerificationStatus;
