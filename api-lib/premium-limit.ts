@@ -3,8 +3,8 @@ import { isIP } from "node:net";
 import { normalizePurchaseCode } from "../src/server/payments/service";
 import { json, supabaseServerKey } from "./env";
 /** Only trust Vercel's overwritten forwarded header in Vercel. Else use one shared bucket. */
-export function premiumLimitHashes(request: Request, code: unknown, key: string, vercel: boolean) {
-  const raw = vercel ? request.headers.get("x-vercel-forwarded-for")?.trim() : null;
+export function premiumLimitHashes(request: Request, code: unknown, key: string, vercel: boolean, trustedClientIp?: string) {
+  const raw = trustedClientIp ?? (vercel ? request.headers.get("x-vercel-forwarded-for")?.trim() : null);
   // IPv6 /64 grouping prevents trivial address rotation within the same network.
   let client = "unidentified";
   if (raw && isIP(raw) === 4) client = raw;
@@ -19,14 +19,14 @@ export function premiumLimitHashes(request: Request, code: unknown, key: string,
   const digest = (context: string, value: string) => createHmac("sha256", key).update(`premium-limit-v1:${context}:${value}`).digest("hex");
   return { p_client_hash: digest("client", client), p_code_hash: digest("code", normalizePurchaseCode(code) ?? "invalid") };
 }
-export async function enforcePremiumLimit(request: Request, code: unknown, env: Record<string, string | undefined> = process.env, fetchFn: typeof fetch = fetch): Promise<Response | null> {
+export async function enforcePremiumLimit(request: Request, code: unknown, env: Record<string, string | undefined> = process.env, fetchFn: typeof fetch = fetch, trustedClientIp?: string): Promise<Response | null> {
   const key = supabaseServerKey(env)?.key;
-  const url = env.SUPABASE_URL;
+  const url = env.SUPABASE_URL?.trim();
   if (!key || !url) return json(503, { code: "RATE_LIMIT_UNAVAILABLE", message: "구매 확인을 잠시 이용할 수 없어요." });
   try {
     const response = await fetchFn(`${url.replace(/\/+$/, "")}/rest/v1/rpc/consume_premium_attempt`, {
       method: "POST", headers: { apikey: key, ...(key.startsWith("sb_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json" },
-      body: JSON.stringify(premiumLimitHashes(request, code, key, env.VERCEL === "1")),
+      body: JSON.stringify(premiumLimitHashes(request, code, key, env.VERCEL === "1", trustedClientIp)),
     });
     if (!response.ok) throw new Error("limiter unavailable");
     const allowed: unknown = await response.json();

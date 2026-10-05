@@ -338,3 +338,6 @@
 - 피드백 저장·분석 요청: 기존 beta_feedback 저장소를 활용, 관리자 읽기 전용 월별/영역별/버전별 집계 SQL과 연결 안내 추가. 공개 키 미설정 상태를 결제 서버 설정과 구분. 자유 입력 개인정보 금지 안내 추가; 원문 자동 비식별화를 보장하지 않음. 실제 공개 키 입력·저장 확인은 사용자 단계이며 수행 완료로 기록하지 않음.
 
 - 사용자 도메인 HTTPS 접속 및 Preview 피드백 신규 DB 행 확인. 최신 기능 정식 공개와 AdSense 지원 요청에 따라 공개 전환 안내와 게시자 ID 기반 소유권 meta/ads.txt 빌드 지원 준비. 광고 스크립트/LIVE/main 병합은 실행하지 않음. 호스팅 선택과 실제 Google 게시자 ID 대기.
+
+### Cloudflare Pages payment adapter
+- User confirmed Pages deployment and actual feedback row. Added TEST-only advanced-mode API adapter, per-request env injection, trusted Cloudflare IP integration with existing DB limiter, Node compatibility configuration, and build:cloudflare. No packages or SQL added. LIVE locked in adapter. Domain DNS unchanged. Deployed runtime/actual Toss TEST verification remains pending user settings.

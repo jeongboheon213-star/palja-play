@@ -431,8 +431,8 @@ function fromResult(r) {
 }
 
 // api-src/payments/confirm.ts
-async function POST(request) {
-  const cfg = paymentsConfig();
+async function POST(request, env = process.env, trustedClientIp) {
+  const cfg = paymentsConfig(env);
   if (!cfg.ok) return json(cfg.status, { code: cfg.code, message: cfg.message });
   const body = await readJson(request);
   if (!body) return json(400, { code: "INVALID_REQUEST", message: "요청 형식이 올바르지 않아요." });

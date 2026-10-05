@@ -847,8 +847,8 @@ function fromResult(r) {
 }
 
 // api-lib/premium-limit.ts
-function premiumLimitHashes(request, code, key, vercel) {
-  const raw = vercel ? request.headers.get("x-vercel-forwarded-for")?.trim() : null;
+function premiumLimitHashes(request, code, key, vercel, trustedClientIp) {
+  const raw = trustedClientIp ?? (vercel ? request.headers.get("x-vercel-forwarded-for")?.trim() : null);
   let client = "unidentified";
   if (raw && isIP(raw) === 4) client = raw;
   if (raw && isIP(raw) === 6) {
@@ -862,15 +862,15 @@ function premiumLimitHashes(request, code, key, vercel) {
   const digest = (context, value) => createHmac("sha256", key).update(`premium-limit-v1:${context}:${value}`).digest("hex");
   return { p_client_hash: digest("client", client), p_code_hash: digest("code", normalizePurchaseCode(code) ?? "invalid") };
 }
-async function enforcePremiumLimit(request, code, env = process.env, fetchFn = fetch) {
+async function enforcePremiumLimit(request, code, env = process.env, fetchFn = fetch, trustedClientIp) {
   const key = supabaseServerKey(env)?.key;
-  const url = env.SUPABASE_URL;
+  const url = env.SUPABASE_URL?.trim();
   if (!key || !url) return json(503, { code: "RATE_LIMIT_UNAVAILABLE", message: "구매 확인을 잠시 이용할 수 없어요." });
   try {
     const response = await fetchFn(`${url.replace(/\/+$/, "")}/rest/v1/rpc/consume_premium_attempt`, {
       method: "POST",
       headers: { apikey: key, ...key.startsWith("sb_") ? {} : { Authorization: `Bearer ${key}` }, "Content-Type": "application/json" },
-      body: JSON.stringify(premiumLimitHashes(request, code, key, env.VERCEL === "1"))
+      body: JSON.stringify(premiumLimitHashes(request, code, key, env.VERCEL === "1", trustedClientIp))
     });
     if (!response.ok) throw new Error("limiter unavailable");
     const allowed = await response.json();
@@ -885,12 +885,12 @@ async function enforcePremiumLimit(request, code, env = process.env, fetchFn = f
 }
 
 // api-src/premium/report.ts
-async function POST(request) {
-  const cfg = paymentsConfig();
+async function POST(request, env = process.env, trustedClientIp) {
+  const cfg = paymentsConfig(env);
   if (!cfg.ok) return json(cfg.status, { code: cfg.code, message: cfg.message });
   const body = await readJson(request);
   if (!body) return json(400, { code: "INVALID_REQUEST", message: "요청 형식이 올바르지 않아요." });
-  const limited = await enforcePremiumLimit(request, body.purchaseCode);
+  const limited = await enforcePremiumLimit(request, body.purchaseCode, env, fetch, trustedClientIp);
   if (limited) return limited;
   return fromResult(await openPremiumReport(cfg.deps, { purchaseCode: body.purchaseCode, productId: body.productId, signalIds: body.signalIds, openContent: body.openContent }));
 }

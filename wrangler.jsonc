@@ -1,0 +1,6 @@
+{
+  "name": "palja-play",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-10-05",
+  "compatibility_flags": ["nodejs_compat"]
+}

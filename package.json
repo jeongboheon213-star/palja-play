@@ -9,6 +9,7 @@
     "test": "tsx --test tests/*.test.ts",
     "check": "npm run typecheck && node scripts/build-api.mjs --check && npm run test",
     "build": "node scripts/build.mjs",
+    "build:cloudflare": "node scripts/build-cloudflare.mjs",
     "build:dev": "node scripts/build.mjs --dev",
     "dev": "node scripts/build.mjs --dev --serve",
     "e2e": "node scripts/build.mjs --dev --no-remote --kakao-test-key && node scripts/e2e.mjs && node scripts/e2e-battle.mjs",

@@ -85,3 +85,6 @@
 - `npm run e2e:prod` (Production 배틀 매트릭스 + Production QA 11개) — 배포 후 실행
 - `npm run build` (prod) / `npm run build:dev` / `npm run dev`
 - 줄바꿈 LF (`.gitattributes`). 커밋 후 `main` 푸시 = Production 배포이므로 테스트 통과 후에만 푸시.
+
+## Latest Cloudflare migration authorization (supersedes older public deployment restriction)
+User authorized free Cloudflare migration and deployed c5e5768 to palja-play.pages.dev. Feedback DB row and AdSense files confirmed. See CLOUDFLARE_PAYMENTS.md for TEST server adapter and pending user keys/build change. No main merge, domain switch or LIVE approval.
