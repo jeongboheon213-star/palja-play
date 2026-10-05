@@ -2,7 +2,7 @@
 
 상태: **구현 완료 / TEST 키 연결 전**. Production 은 `PALJA_PAYMENTS_MODE` 미설정(=off) → 모든 결제 API 503 "준비 중", 화면은 기존 "준비 중" 안내 그대로.
 
-> Phase 2 최신 변경: 결제 승인 직후 본문을 자동 제공하지 않는다. 명시적 열기 → DB 최초 제공 기록 → 본문 반환. REFUND_REQUESTED로 취소 확인 중 열람을 잠그고, 본문/미열람 취소 요청에 DB rate limit을 적용한다. 상세: `PREMIUM_ACCESS_IMPLEMENTATION.md`. 아래의 기존 설명과 다른 부분은 최신 문서가 우선한다. 실제 Supabase·Toss TEST 확인 대기.
+> Phase 2 최신 변경: 결제 승인 직후 본문을 자동 제공하지 않는다. 명시적 열기 → DB 최초 제공 기록 → 본문 반환. REFUND_REQUESTED로 취소 확인 중 열람을 잠그고, 본문/미열람 취소 요청에 DB rate limit을 적용한다. 상세: `PREMIUM_ACCESS_IMPLEMENTATION.md`. 아래의 기존 설명과 다른 부분은 최신 문서가 우선한다. 실제 Supabase 구조/권한 13개 확인 완료. Preview 앱 동작·Toss TEST 확인 대기.
 
 ## 1. 구조
 
@@ -68,7 +68,7 @@ PAID 는 failUrl 등으로 덮어쓸 수 없다 (CREATED 일 때만 CANCELLED/FA
 - **같은 기기**: 브라우저에 구매 기록(주문 번호·구매 코드·Signal id, 생년월일 없음) 저장 → "구매한 리포트 보기".
 - **다른 기기 복구**: 같은 생년월일·시간을 다시 입력해 결과를 만든 뒤 "이미 구매했어요 → 구매 코드로 열기". 친구 사주에는 같은 코드가 열리지 않음(chart_key 불일치).
 - **구매 코드를 잃어버린 경우**: 영수증·주문 소유자 확인 후 TEST 관리자 `scripts/payment-admin.ts rotate-code`로 재발급 가능. 실제 운영 검증·LIVE 지원은 대기.
-- 실패 사유를 자세히 알려 주지 않음(코드 추측 방지). DB rate limit 코드 구현, 실제 Supabase 적용 대기.
+- 실패 사유를 자세히 알려 주지 않음(코드 추측 방지). DB rate limit 코드 구현 및 실제 Supabase 구조/권한 확인 완료, Preview 동작 검증 대기.
 
 ## 8. 환불 (관리자)
 1. 주문 확인: Supabase SQL `select order_id, status, amount, paid_at from orders where order_id = '…'`.

@@ -26,4 +26,6 @@
 
 최초 모의 결제 브라우저 실행은 `--no-remote`가 의도적으로 결제를 OFF로 만들어 실패했다. 외부 연결을 끈 개발 빌드에서만 사용할 수 있는 `--payment-ui-test`를 추가하고 재실행해 7/7을 확인했다. Production에서 이 옵션 사용은 빌드가 거부한다.
 
-NOT RUN: 실제 Supabase migration·권한 확인, 실제 Toss TEST 결제/취소, Vercel Preview QA, 이번 변경의 Production QA, iPhone Safari·실제 카카오톡·문자 앱·Android Chrome 실기기. 로컬 카카오 테스트는 SDK 전달 링크 검사이며 실제 앱 전송이 아니다. LIVE는 비활성 유지한다.
+실제 Supabase migration은 사용자가 SQL Editor에서 Run했고 성공 화면을 제공했다. 읽기 전용 phase2_check 13개가 전부 예상 값임을 확인했다(원본: `phase2-supabase-verification.json`). 실제 앱의 열람/취소/제한 횟수 동작까지 확인한 것은 아니다. 안내 문서 커밋 67fe8ce의 Actions #5도 success 확인.
+
+NOT RUN: 실제 Toss TEST 결제/취소, Vercel Preview QA, 실제 Supabase에서 앱을 통한 최초 제공/환불/요청 제한 검증, 이번 변경의 Production QA, iPhone Safari·실제 카카오톡·문자 앱·Android Chrome 실기기. 로컬 카카오 테스트는 SDK 전달 링크 검사이며 실제 앱 전송이 아니다. LIVE는 비활성 유지한다.

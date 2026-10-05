@@ -308,3 +308,10 @@
 - 분석 재현 비교·최신 GitHub CI 기록은 PROGRESS에 후속 기록. 독립 PostgreSQL CI 검사를 추가해 실제 Supabase와 분리함.
 - npm 패키지 추가 없음. main/Production/LIVE 변경 없음. 다음은 사용자 SQL Editor Run 후 Preview TEST 키 연결.
 - 후속 확인: 전체 분포를 다시 실행한 JSON과 저장 결과가 완전히 동일. GitHub 코드 커밋 17a24c4 업로드 및 Actions #4 전체 success 확인(독립 PostgreSQL 동시성·권한 검사 포함). 사용자용 안내와 검증 기록을 같은 브랜치에 추가 저장.
+
+### 실제 Supabase 적용 확인 (사용자 Run)
+
+- 사용자가 phase2-apply.sql 실행 성공 화면과 phase2-verify.sql 결과 전체를 제공함. 13개 값 모두 기대값 일치: 최초 제공 컬럼 존재, orders/제한 테이블 RLS ON, 서버 열람·취소·제한 RPC 실행 허용, 확인된 브라우저 접근·서버 삭제/제한 테이블 직접 조회 거부.
+- 비밀 키·고객 정보 없는 확인 결과를 docs/phase2-supabase-verification.json으로 저장함. 실제 Toss/앱 열람·환불·제한 횟수 테스트로 과장하지 않음.
+- SQL 사용자 단계 완료. 다음은 Vercel Preview의 TEST 키 입력(사용자 전용). Production/LIVE 설정은 변경하지 않음.
+- 안내 문서 커밋 67fe8ce의 GitHub Actions #5 전체 success 확인.

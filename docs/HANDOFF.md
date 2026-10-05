@@ -7,7 +7,8 @@
 - 티어 기준은 실제 569,776건 분석으로 교체했다. `docs/TIER_DESIGN.md`, `docs/tier-distribution.json`, `src/lib/tier/` 참고. 기존 score·배틀 공식·공유 주소는 유지했다.
 - 명시적 열람/최초 제공 기록, 미열람 취소, REFUND_REQUESTED 잠금, DB 구매코드 제한, TEST 관리자 환불·코드 재발급 구현. `docs/PREMIUM_ACCESS_IMPLEMENTATION.md` 참고.
 - 로컬 검증: `npm ci`; `npm run check` 243/243; 화면 E2E 36/36; 배틀 34/34; 모의 결제 화면 7/7. 실제 DB/Toss 실행으로 표현하지 않는다. 최신 CI와 분석 재현 기록은 `docs/PROGRESS.md` 참고.
-- **다음 사용자 단계:** 기존 Supabase SQL Editor에서 `supabase/phase2-apply.sql` 실행 → `supabase/phase2-verify.sql` 읽기 전용 결과 확인. 사용자 전용 Run 단계이므로 여기서 기다린다.
+- **Supabase 신규 SQL 완료:** 사용자의 실행 성공 화면과 확인 JSON 13개를 대조해 모두 예상 값임을 확인함. `docs/phase2-supabase-verification.json` 참고. 다시 Run 요청 금지. 실제 앱의 결제/열람/환불 동작 검증과 구분한다.
+- **다음 사용자 단계:** Vercel palja-play → Settings → Environment Variables에서 기존 작업 브랜치의 Preview에만 TEST 키를 사용자 직접 입력. 로그인/비밀 키 입력 단계이므로 사용자 안내 후 기다린다.
 - 그 다음 Vercel **Preview**에 TEST 키를 사용자가 입력하고 실제 Toss TEST 결제/취소 및 Supabase 상태를 검증한다. Secret Key를 채팅에 요청하지 않는다.
 - 단기 HMAC 제한 기록의 보관 정리, 실제 문의 창구·사업자 정보·최종 법률 문구·실기기·외부 취소 상태 동기화 등 LIVE 준비는 미완료다.
 - 새 npm 패키지는 추가하지 않았다. 사용자는 비개발자이며, 처리 가능한 작업은 중간 승인 없이 계속한다. 사용자만 가능한 로그인/키 입력/SQL Run·LIVE 활성화·중요 사업 정책에서 멈춘다.
