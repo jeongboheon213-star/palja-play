@@ -441,7 +441,12 @@ $("#sheet-buy").addEventListener("click", async () => {
 $("#sheet-owned").addEventListener("click", async () => {
   if (!sheetProduct || !current) return;
   const owned = findStoredPurchase(sheetProduct.productId, productSignalIds(current, sheetProduct.productId));
-  if (!owned) return;
+  if (!owned) {
+    $("#sheet-err").textContent = "이 기기에 유효한 구매 기록이 없어요. 취소한 구매는 열 수 없으며, 다른 구매는 구매 코드로 확인해 주세요.";
+    $("#sheet-owned").hidden = true;
+    $("#sheet-cancel").hidden = true;
+    return;
+  }
   const r = await fetchReport(owned.purchaseCode, owned.productId, owned.signalIds);
   if (!r.ok) {
     $("#sheet-err").textContent = r.message;
@@ -472,7 +477,12 @@ async function cancelFromSheet(useCode: boolean): Promise<void> {
     : findStoredPurchase(productId, signalIds);
   if (!purchase) return;
   const result = await cancelUnopenedPurchase(purchase);
-  if (result.ok) { closeSheet(); toast("구매 취소가 완료됐어요."); }
+  if (result.ok) {
+    $("#sheet-owned").hidden = true;
+    $("#sheet-cancel").hidden = true;
+    $("#sheet-err").textContent = "구매 취소가 완료됐어요. 취소된 구매의 리포트는 열 수 없어요.";
+    toast("구매 취소가 완료됐어요.");
+  }
   else $("#sheet-err").textContent = result.message;
 }
 $("#sheet-cancel").addEventListener("click", () => void cancelFromSheet(false));
@@ -675,7 +685,7 @@ function renderFeedback(c: Current): HTMLElement {
     h("p", { class: "q" }, "한마디 남겨주세요 (선택)"),
     comment,
     submit,
-    h("p", { class: "mute small", style: "margin-top:8px" }, "생년월일·출생 시간은 피드백과 함께 저장하지 않아요."),
+    h("p", { class: "mute small", style: "margin-top:8px" }, "생년월일·출생 시간은 자동으로 저장하지 않아요. 한마디에는 연락처·구매 코드·결제 키 등 개인정보를 적지 마세요."),
     // 개발 빌드 전용 안내 (__PALJA_ENV__ 비교라 production 빌드에서는 문구째 제거된다)
     __PALJA_ENV__ === "development" && rt.feedback.kind === "remote"
       ? h("p", { class: "devnote" }, "개발 환경: 피드백이 Supabase 에 개발용(source=development)으로 저장돼요.")

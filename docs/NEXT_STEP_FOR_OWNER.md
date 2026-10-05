@@ -1,5 +1,7 @@
 # 다음 단계: Vercel Preview에서 TEST 결제 연결
 
+최신 추가: 사용자가 Preview TEST 결제·열람·구매 코드 복구·미열람 취소 성공을 보고했다. 취소 후 무반응 안내와 복구 구매별 삭제 범위 보정 완료, 로컬 245개/모의 브라우저 10개 통과. 이전 키 입력 대기 설명은 과거 기록이다. 다음은 수정 Preview 확인, 피드백 공개 키 연결(사용자 직접), 도메인 선택이다. docs/FEEDBACK_ANALYSIS.md와 docs/DOMAIN_ADSENSE_PLAN.md 참고. Production/LIVE 변경 없음.
+
 코드와 분석 데이터는 기존 GitHub `chatgpt/payment-tier-phase2` 브랜치, [Draft PR #1](https://github.com/jeongboheon213-star/palja-play/pull/1)에 저장했다. main과 운영 결제는 바꾸지 않았다.
 
 완료한 내용: PLAY 기준 티어, 배틀 티어 표시, 직접 리포트 열기, 최초 제공 기록, 미열람 구매 취소, 구매코드 반복 시도 제한. 실제 Supabase SQL 실행과 13개 구조/권한 확인도 완료했다. 실제 Toss TEST 결제/취소와 앱 동작 확인은 아직 하지 않았다.

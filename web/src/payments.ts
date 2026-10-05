@@ -174,6 +174,8 @@ export function rememberRestoredPurchase(p: StoredPurchase): void {
 export async function cancelUnopenedPurchase(p: StoredPurchase): Promise<{ ok: true } | { ok: false; message: string }> {
   const result = await post("/api/payments/refund-unopened", { purchaseCode: p.purchaseCode, productId: p.productId, signalIds: p.signalIds });
   if (!result.ok) return { ok: false, message: result.error.message };
-  safeSet(localStorage, PURCHASES_KEY, storedPurchases().filter((x) => x.orderId !== p.orderId));
+  const normalize = (code: string) => code.toUpperCase().replace(/[\s-]/g, "");
+  safeSet(localStorage, PURCHASES_KEY, storedPurchases().filter((x) =>
+    !(x.productId === p.productId && normalize(x.purchaseCode) === normalize(p.purchaseCode))));
   return { ok: true };
 }
