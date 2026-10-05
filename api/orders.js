@@ -294,7 +294,9 @@ function createSupabaseOrderRepo(baseUrl, serviceRoleKey, fetchFn = fetch) {
       res = await fetchFn(url, { ...init, headers: { ...headers, ...init.headers } });
     } catch (error) {
       const cause = error instanceof Error ? error.cause : void 0;
-      const code = ["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT"].find((c) => c === cause?.code) ?? "NETWORK_ERROR";
+      const directCode = error instanceof Error ? error.code : void 0;
+      const invalidHeader = error instanceof Error && /invalid header|header.*invalid|not a legal HTTP header|ByteString/i.test(error.message);
+      const code = ["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_INVALID_ARG", "ERR_INVALID_CHAR", "ERR_INVALID_HTTP_TOKEN", "CERT_HAS_EXPIRED", "UNABLE_TO_VERIFY_LEAF_SIGNATURE"].find((c) => c === cause?.code || c === directCode) ?? (invalidHeader ? "INVALID_HEADER" : "NETWORK_ERROR");
       console.error("[payment-storage]", JSON.stringify({ operation: init.method, status: 0, code }));
       throw new Error("supabase network error");
     }
@@ -351,7 +353,7 @@ function supabaseServerKey(env) {
     }
   };
   for (const name of ["SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"]) {
-    const key = env[name];
+    const key = env[name]?.trim();
     if (key && isSecret(key)) return { name, key };
   }
   return null;
@@ -359,8 +361,8 @@ function supabaseServerKey(env) {
 function paymentsConfig(env = process.env) {
   const mode = env.PALJA_PAYMENTS_MODE ?? "off";
   if (mode !== "test" && mode !== "live") return { ok: false, status: 503, code: "PAYMENTS_DISABLED", message: "사주팔자PLAY Beta에서 준비 중인 기능입니다." };
-  const secret = env.TOSS_SECRET_KEY ?? "";
-  const supaUrl = env.SUPABASE_URL ?? "";
+  const secret = (env.TOSS_SECRET_KEY ?? "").trim();
+  const supaUrl = (env.SUPABASE_URL ?? "").trim();
   const supaKey = supabaseServerKey(env)?.key ?? "";
   if (mode === "test" && !/^test_(g?sk)_/.test(secret)) return { ok: false, status: 503, code: "PAYMENTS_MISCONFIGURED", message: "결제 설정을 확인하는 중이에요." };
   if (mode === "live") {

@@ -55,7 +55,9 @@ export function createSupabaseOrderRepo(baseUrl: string, serviceRoleKey: string,
       res = await fetchFn(url, { ...init, headers: { ...headers, ...(init.headers as Record<string, string>) } });
     } catch (error) {
       const cause = error instanceof Error ? (error as Error & { cause?: { code?: unknown } }).cause : undefined;
-      const code = ["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT"].find((c) => c === cause?.code) ?? "NETWORK_ERROR";
+      const directCode = error instanceof Error ? (error as Error & { code?: unknown }).code : undefined;
+      const invalidHeader = error instanceof Error && /invalid header|header.*invalid|not a legal HTTP header|ByteString/i.test(error.message);
+      const code = ["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_INVALID_ARG", "ERR_INVALID_CHAR", "ERR_INVALID_HTTP_TOKEN", "CERT_HAS_EXPIRED", "UNABLE_TO_VERIFY_LEAF_SIGNATURE"].find((c) => c === cause?.code || c === directCode) ?? (invalidHeader ? "INVALID_HEADER" : "NETWORK_ERROR");
       // 고정 분류만 기록: URL·키·요청/응답 본문·오류 message/stack은 출력하지 않는다.
       console.error("[payment-storage]", JSON.stringify({ operation: init.method, status: 0, code }));
       throw new Error("supabase network error");

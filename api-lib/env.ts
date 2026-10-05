@@ -44,7 +44,7 @@ export function supabaseServerKey(env: Record<string, string | undefined>): { na
     }
   };
   for (const name of ["SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"]) {
-    const key = env[name];
+    const key = env[name]?.trim();
     if (key && isSecret(key)) return { name, key };
   }
   return null;
@@ -53,8 +53,8 @@ export function supabaseServerKey(env: Record<string, string | undefined>): { na
 export function paymentsConfig(env: Record<string, string | undefined> = process.env): PaymentsConfig {
   const mode = env.PALJA_PAYMENTS_MODE ?? "off";
   if (mode !== "test" && mode !== "live") return { ok: false, status: 503, code: "PAYMENTS_DISABLED", message: "사주팔자PLAY Beta에서 준비 중인 기능입니다." };
-  const secret = env.TOSS_SECRET_KEY ?? "";
-  const supaUrl = env.SUPABASE_URL ?? "";
+  const secret = (env.TOSS_SECRET_KEY ?? "").trim();
+  const supaUrl = (env.SUPABASE_URL ?? "").trim();
   const supaKey = supabaseServerKey(env)?.key ?? "";
   if (mode === "test" && !/^test_(g?sk)_/.test(secret)) return { ok: false, status: 503, code: "PAYMENTS_MISCONFIGURED", message: "결제 설정을 확인하는 중이에요." };
   if (mode === "live") {
