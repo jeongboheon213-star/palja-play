@@ -41,7 +41,7 @@ test("경도 보정 교체", () => {
 test("버전 상수", () => {
   assert.equal(SCHEMA_VERSION, "0.2.0");
   assert.equal(ENGINE_VERSION, "0.2.0-beta");
-  assert.equal(INTERPRETATION_VERSION, "0.1.0-alpha");
+  assert.equal(INTERPRETATION_VERSION, "0.2.0-beta");
 });
 
 test("PRODUCTS", () => {

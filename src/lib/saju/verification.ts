@@ -88,7 +88,10 @@ export const VERIFICATION_STATUS: VerificationStatus = Object.freeze({
     level: "not-verified",
     note: "Phase 4: Signal 규칙 + 7개 서비스 지표 (score-0.1.0). 전통 사주의 절대 측정값이 아니며 사용자 피드백으로 조정 예정.",
   }),
-  interpretation: Object.freeze({ level: "not-verified", note: "미구현." }),
+  interpretation: Object.freeze({
+    level: "not-verified",
+    note: "Phase 5: Signal id 기반 고정 문구 (FREE, interpretation 0.2.0-beta). AI 생성 없음. 사용자 피드백으로 개선 예정.",
+  }),
 }) as VerificationStatus;
 
 /** 외부 검증 또는 전문가 검토를 통과한 항목이 하나라도 있는가. */

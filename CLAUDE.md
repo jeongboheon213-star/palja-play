@@ -31,6 +31,7 @@ Validation → CalendarProvider → TimeNormalizer → SolarTermProvider → Saj
 - Phase 3C 완료: 네 기둥 (`src/lib/saju/pillars/`), confidence + boundaryRisk, 시간 미상 시주 null.
 - Phase 3D 완료: SajuData(`src/lib/saju/chart/`) 일간·오행·지장간·십성·12운성(unverified, 해석 비연결)·관계. uncertain 기둥은 제외 목록으로.
 - Phase 4 완료: Signals(`src/lib/interpretation/signals.ts`) + 7개 점수(score-0.1.0, 서비스 지표). 12운성 미사용.
+- Phase 5 완료: FREE 결과(`src/lib/interpretation/free.ts`), 모든 문장 Signal 근거, 반전은 반대 polarity 있을 때만.
 - 테스트·tsc 통과 (개수는 docs/WORKLOG.md). 환경 비교: `tests/tools/env-hash*.ts`.
 
 ## 다음: Phase 3C 부터 연속 진행 (docs/BETA_DIRECTION.md 승인됨, 3C→3D→4→5→6 후 통합 보고)

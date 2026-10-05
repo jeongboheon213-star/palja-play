@@ -80,3 +80,23 @@
 테스트 (+12 → 총 138)
 - 필수 필드, 7개 이름 유지, 근거 id 존재, 스윕(근거·범위·결정론·단조롭지 않음·평균 50~75), 100회 결정론, 배우자 별 성별 기준, uncertain/시간 미상 위치 제외, 일주 uncertain → null, 근거 검증 상태(일간만 verified-internally), 12운성을 바꿔도 Signals 동일.
 - 아키텍처: 해석 계층은 12운성·기둥/절기 계산 함수를 쓰지 않는다.
+
+## 2026-10-05 — Phase 5: FREE Reading (WHAT)
+
+만든 것 (`src/lib/interpretation/free.ts`, `copy/`, `notices.ts`)
+- `buildFreeReading(SajuData)` → 캐릭터 · 핵심 성향 5~7 · 강점 5+ · 주의점 3+ · 오행 밸런스 · 7개 능력치 · 재물/연애/직업/사업/인간관계 해석 · 인생 키워드 · 반전 포인트 · 안내 · 기둥 표시 · 버전.
+- 캐릭터: 10개 일간별 (미리보기의 5개 오행 캐릭터를 음양으로 확장). 근거 Signal = `personality.daymaster.<일간>` (일주, verified-internally).
+- 모든 문장은 Signal id 를 근거로 가진다. 문구 표는 Signal id → 문구(`copy/signalCopy.ts`). 근거가 적을 때 최소 개수는 같은 일간 근거의 예비 문구로 채움 (근거 없는 문장 없음).
+- 반전 포인트: 같은 영역에 positive(revPos) + negative(revNeg) Signal 이 **실제로 있을 때만** "A지만, B" 생성. 표본에서 약 98% 의 결과에 1개 이상(평균 2.7개), 나머지는 0개.
+- 안내 코드: BOUNDARY_RISK("절기 경계에 가까운 출생 시각으로, Beta 계산 기준에 따라 결과가 달라질 수 있습니다."), TIME_UNKNOWN, PILLAR_UNCERTAIN, PARTIAL_DATA. 경계 위험이 있어도 결과는 막지 않음.
+- 결과에 생년월일·시각·성별 원본을 넣지 않고 버전 묶음(engine/schema/interpretation/score/solarTermProvider/policy)만 넣음 → 피드백 연결용.
+- Beta 안내문(`BETA_DISCLAIMER`), 능력치 안내문 준비.
+- 캐릭터 문구 중 근거와 충돌할 수 있는 단정(예: 경 "돈을 버는 감각은 좋은 편")을 성향 묘사로 수정.
+- `INTERPRETATION_VERSION` 0.1.0-alpha → 0.2.0-beta.
+
+테스트 (+15 → 총 153)
+- 구성·최소 개수(스윕 + 확정 기둥 1개 사례), 모든 문장 근거 id 존재, 반전 생성 조건 양방향(있으면 반드시·없으면 절대), 모든 Signal 문구 정의, 반전 문장 형식, 10개 캐릭터 문구 수, 금지 표현(반드시/무조건/100%/정확한/검증된/투자 권유 등), 경계 위험 안내 + 결과 비차단, 버전, 원본 개인정보 미포함, 결정론·동결, 일주 uncertain → 결과 없음.
+- 금지 표현 테스트가 "이미 검증된 방식" 문구를 잡아내 "이미 자리 잡은 방식"으로 수정.
+
+테스트 변경 기록
+- `policies.test.ts` INTERPRETATION_VERSION 기대값 0.2.0-beta 로 갱신.
