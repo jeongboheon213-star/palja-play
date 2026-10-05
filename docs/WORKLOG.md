@@ -341,3 +341,6 @@
 
 ### Cloudflare Pages payment adapter
 - User confirmed Pages deployment and actual feedback row. Added TEST-only advanced-mode API adapter, per-request env injection, trusted Cloudflare IP integration with existing DB limiter, Node compatibility configuration, and build:cloudflare. No packages or SQL added. LIVE locked in adapter. Domain DNS unchanged. Deployed runtime/actual Toss TEST verification remains pending user settings.
+
+### Cloudflare dashboard variable override fix
+- Actual deployment log dac504d3 reported no build variables and Supabase unset/payment off; deployed API also PAYMENTS_DISABLED. Wrangler configuration made repository config authoritative over dashboard text settings. Removed wrangler.jsonc to restore dashboard-owned variables. Runtime compatibility settings are retained from last deployment per Cloudflare docs; verify nodejs_compat in dashboard. User credentials remain dashboard-only. Actual new deployment verification pending.

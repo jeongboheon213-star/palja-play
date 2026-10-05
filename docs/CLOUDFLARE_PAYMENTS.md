@@ -2,7 +2,7 @@
 
 The user created palja-play.pages.dev from chatgpt/payment-tier-phase2 and confirmed a feedback record in Supabase. The public domain still serves Vercel. AdSense meta and ads.txt are verified on pages.dev only.
 
-Change Pages build command to `npm run build:cloudflare`, output `dist`. wrangler.jsonc supplies nodejs_compat and the compatibility date. Advanced mode emits dist/_worker.js; only /api/* invokes it. Other requests use static Pages assets. No packages added.
+Change Pages build command to `npm run build:cloudflare`, output `dist`. Use dashboard configuration only: runtime compatibility date 2026-10-05 and flag nodejs_compat. Do not add a Wrangler configuration file: it overrides dashboard text variables for build and runtime. Advanced mode emits dist/_worker.js; only /api/* invokes it. Other requests use static Pages assets. No packages added.
 
 Pages Production variables (user enters credentials in dashboard, never chat):
 - Keep PALJA_PUBLIC_URL, PALJA_ADSENSE_PUBLISHER_ID, PALJA_SUPABASE_URL, PALJA_SUPABASE_ANON_KEY.
