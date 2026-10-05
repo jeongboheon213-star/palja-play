@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 
 const root = `${process.cwd()}/src`;
-const files = readdirSync(root, { recursive: true }).filter((f) => f.endsWith(".ts"));
+// Windows 에서는 경로 구분자가 \ 이므로 / 로 통일한다 (통일하지 않으면 startsWith("lib/saju") 검사가 아무 파일도 고르지 않는다).
+const files = readdirSync(root, { recursive: true, encoding: "utf8" })
+  .map((f) => f.replace(/\\/g, "/"))
+  .filter((f) => f.endsWith(".ts"));
 const src = files.map((f) => ({ f, text: readFileSync(`${root}/${f}`, "utf8") }));
 
 test("소스 파일이 존재한다", () => assert.ok(files.length >= 10));
