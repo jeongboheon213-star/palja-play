@@ -363,3 +363,10 @@
 - User screenshot confirms authenticated admin page now opens after certificate fetch adjustment; feedback retrieval still fails. Actual stored data read remains unverified.
 - Compared selected fields against existing feedback migration and serializer; no schema discrepancy found. Applied wrapped global fetch/manual no-follow request to feedback reader, and bounded config/HTTP/fetch/data failure codes displayed safely in UI. No secret/response-body exposure, SQL or permission changes.
 - 257 tests/type/API checks and Cloudflare build PASS; local fixture browser 13 checks PASS. Authenticated production recheck pending automatic deployment.
+
+### SEO audit before landing implementation (2026-10-06)
+- User requested 18-point actual-code/live-HTTP SEO audit before landing implementation and safe fixes on a separate branch. Created seo/audit-foundation from 24d2773; no main/production merge, deployment, engine/tier/battle/payment changes.
+- Live checks: apex/www/Vercel roots all 200 without redirect/canonical; Cloudflare robots/sitemap return HTML fallback, Vercel 404. Main has static introduction, results require JS, no independent feature/trust pages. Full findings and seven proposed landing designs: docs/SEO_AUDIT.md.
+- Added build-time title/description/canonical/OG/summary card/WebSite JSON-LD and genuine robots/sitemap. Proposed apex canonical, domain redirects/old Vercel cleanup/shared image/trust pages remain pending. Existing AdSense ownership retained.
+- Executed npm run check: 257/257 plus type/API checks PASS. Cloudflare build PASS. Node assertions verified metadata uniqueness, JSON-LD, unchanged HTML body, robots/sitemap, dev noindex and AdSense integration. Google URL inspection, Naver account/index checks, mobile real-device/Lighthouse and authenticated payment E2E were not run.
+- User confirmed administrator dashboard now loads real nine feedback rows; prior pending feedback read is resolved by user screenshot.

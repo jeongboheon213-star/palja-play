@@ -8,6 +8,7 @@
 // 공유 문구의 공개 URL 은 빌드 시 PALJA_PUBLIC_URL 환경 변수로 넣는다 (없으면 링크 없이 공유).
 import * as esbuild from "esbuild";
 import { writeAdsenseFiles } from "./adsense-files.mjs";
+import { seoHtml, writeSeoFiles } from "./seo-files.mjs";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -82,7 +83,8 @@ rmSync(outdir, { recursive: true, force: true });
 mkdirSync(`${outdir}/assets`, { recursive: true });
 mkdirSync(`${outdir}/admin`, { recursive: true });
 cpSync("web/admin.html", `${outdir}/admin/index.html`);
-writeAdsenseFiles(outdir, readFileSync("web/index.html", "utf8"), dev || noRemote ? null : process.env.PALJA_ADSENSE_PUBLISHER_ID);
+writeAdsenseFiles(outdir, seoHtml(readFileSync("web/index.html", "utf8"), { dev }), dev || noRemote ? null : process.env.PALJA_ADSENSE_PUBLISHER_ID);
+writeSeoFiles(outdir, { dev });
 if (dev) cpSync("web/debug.html", `${outdir}/debug.html`);
 
 const options = {
