@@ -85,6 +85,23 @@ test("admin storage is read-only, uses server credentials and omits result IDs a
   assert.equal(calls, 1);
 });
 
+test("feedback failures return only bounded diagnostic codes and no storage secrets", async () => {
+  const config = { SUPABASE_URL: "https://example.supabase.co", SUPABASE_SECRET_KEY: "sb_secret_fake" };
+  const req = new Request("https://admin.example.com/api/admin/feedback");
+  for (const status of [302, 400, 401, 403, 500]) {
+    const mock = (async (_url, init) => {
+      assert.equal(init?.redirect, "manual");
+      return new Response("private storage information", { status });
+    }) as typeof fetch;
+    const response = await adminFeedback(req, config, mock);
+    assert.equal(response.status, 503);
+    const body = await response.json() as { code: string };
+    assert.equal(body.code, `FEEDBACK_HTTP_${status}`);
+    assert.ok(!JSON.stringify(body).includes("private"));
+  }
+  assert.equal((await (await adminFeedback(req, {})).json() as {code: string}).code, "FEEDBACK_CONFIG");
+});
+
 test("admin pagination flags incomplete totals and never returns partial statistics on storage failure", async () => {
   const config = { SUPABASE_URL: "https://example.supabase.co", SUPABASE_SECRET_KEY: "sb_secret_fake" };
   let calls = 0;

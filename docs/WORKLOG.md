@@ -358,3 +358,8 @@
 
 - Production user reported AUTH_CERT_FETCH: JWT claims checks passed, failure is certificate acquisition before signature verification. Public cert endpoint independently returns HTTP 200 and two RSA keys; worker-specific cause still unconfirmed.
 - Wrapped global fetch invocation; manual redirects remain rejected via non-2xx status. Separate timeout setup/network/type/HTTP/JSON diagnostics without raw exceptions or response bodies. Regression checks include 302/403/500 and malformed JSON. 256 tests and Cloudflare build PASS.
+
+### Feedback retrieval follow-up (2026-10-06)
+- User screenshot confirms authenticated admin page now opens after certificate fetch adjustment; feedback retrieval still fails. Actual stored data read remains unverified.
+- Compared selected fields against existing feedback migration and serializer; no schema discrepancy found. Applied wrapped global fetch/manual no-follow request to feedback reader, and bounded config/HTTP/fetch/data failure codes displayed safely in UI. No secret/response-body exposure, SQL or permission changes.
+- 257 tests/type/API checks and Cloudflare build PASS; local fixture browser 13 checks PASS. Authenticated production recheck pending automatic deployment.

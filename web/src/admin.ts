@@ -28,7 +28,11 @@ async function load() {
   status.className = "muted"; status.textContent = "피드백을 불러오는 중입니다.";
   try {
     const response = await fetch(`/api/admin/feedback?days=${period.value}`, { cache: "no-store", credentials: "same-origin" });
-    if (!response.ok) throw new Error(response.status === 403 ? "관리자 인증이 만료됐어요. 페이지를 새로고침해 이메일 인증을 해 주세요." : "피드백을 불러오지 못했어요. 저장소 설정과 연결을 확인해 주세요.");
+    if (!response.ok) {
+      const failure = await response.json().catch(() => ({})) as { code?: unknown };
+      const code = typeof failure.code === "string" && /^(AUTH|FEEDBACK)_[A-Z0-9_]+$/.test(failure.code) ? ` (오류 코드: ${failure.code})` : "";
+      throw new Error((response.status === 403 ? "관리자 인증을 확인하지 못했어요. 페이지를 새로고침해 주세요." : "피드백을 불러오지 못했어요. 저장소 설정과 연결을 확인해 주세요.") + code);
+    }
     const data = await response.json() as { rows: AdminFeedback[]; truncated: boolean; fetchedAt: string };
     if (current !== generation) return;
     rows = data.rows; truncated = data.truncated; fetchedAt = data.fetchedAt;
