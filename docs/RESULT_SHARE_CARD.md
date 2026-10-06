@@ -24,3 +24,11 @@ tests/result-card.test.ts는 실제 기존 티어 객체와 카드 값 일치/�
 scripts/e2e-result-card-prod.mjs는 실제 www 주소의 계산→카드→복귀 및 SEO 5개 응답을 검사한다. PALJA_TEST_PUBLIC_DNS=1은 이 테스트 브라우저만 1.1.1.1의 www 주소로 연결하며 OS/도메인 DNS를 수정하지 않는다. 리포트에 실제 연결 IP를 기록한다. 통신사 DNS가 옛 Vercel을 반환하는 문제와 실제 Google 색인 성공은 별도 문제다.
 
 실기기 iPhone Safari/Android 공유 시트, Instagram/Threads/카카오 실제 앱 전송, 실제 Toss 결제는 자동화 검증과 구분한다. 운영 배포·실행 결과는 완료 시 보고한다.
+
+## SNS chooser (2026-10-06)
+- Branded KakaoTalk, Instagram, Threads and X buttons appear above the existing PNG preview.
+- Kakao reuses the existing SDK/key and sends a text template with the fixed public result-card URL. Without a key, uses native sharing/copy fallback. No image upload or additional key/settings changes.
+- Instagram sends PNG files only to the OS share sheet, where the user chooses Instagram. Unsupported devices get save-image instructions and an Instagram HTTPS link. The website cannot force a particular native share target.
+- Threads/X open compose intents with fixed anonymous link and public tier text. They do not attach the locally generated PNG automatically or publish a post. A normal anchor remains for blocked popups. App-vs-browser routing depends on installation and OS link handling.
+- Browser tests mock SDK/share/compose calls; actual device app launching and SNS posting are not claimed tested.
+- References: https://developers.kakao.com/docs/ko/kakaotalk-share/js-link and https://developer.mozilla.org/en-US/docs/Web/API/Navigator/share . Meta web-intents documentation could not be fetched (429); compose destination is tested for correct URL construction, not live authenticated posting.

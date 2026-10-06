@@ -38,10 +38,12 @@ try {
   await wait(()=>ev("!!document.getElementById('result-card-image') && !document.getElementById('result-card-save').disabled"));
   const card=await ev("(()=>{const im=document.getElementById('result-card-image');return {alt:im.alt,width:im.naturalWidth,height:im.naturalHeight,link:document.getElementById('result-card-link').value,overflow:document.getElementById('result-card-dialog').scrollWidth>document.getElementById('result-card-dialog').clientWidth}})()");
   assert.equal(card.width,1080);assert.equal(card.height,1350);assert(!card.overflow);assert(card.alt.includes(tierBefore.match(/[A-Z]\+? TIER/)[0]));assert(!/1990|05-15|male|purchaseCode|pillars/.test(card.alt+card.link));assert.equal(card.link,base+'/?utm_source=share&utm_medium=result_card');
+  const socialButtons=await ev("['kakao','instagram','threads','x'].map(k=>({id:k,label:document.getElementById('result-card-'+k)?.textContent,title:document.getElementById('result-card-'+k)?.title}))");
+  assert(socialButtons.every(b=>b.label),'Production SNS buttons');
   const png=await ev(`fetch(document.getElementById('result-card-image').src).then(r=>r.blob()).then(b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)}))`);
   writeFileSync('e2e-artifacts/result-share-card-production.png',Buffer.from(png.split(',')[1],'base64'));
   await ev("document.getElementById('result-card-close').click();true");await wait(()=>ev("!document.getElementById('result-card-dialog')"));
   assert.equal(await ev("document.getElementById('palja-tier').innerText"),tierBefore);assert.equal(errors.length,0);
-  const report={at:new Date().toISOString(),base,publicDnsRoute:publicIp,urls:urls.map(({text,...row})=>row),card,errors};writeFileSync('e2e-artifacts/result-card-production.json',JSON.stringify(report,null,2));
+  const report={at:new Date().toISOString(),base,publicDnsRoute:publicIp,urls:urls.map(({text,...row})=>row),card,socialButtons,errors};writeFileSync('e2e-artifacts/result-card-production.json',JSON.stringify(report,null,2));
   console.log('PASS: actual production calculation/tier/card PNG/private-data exclusion/modal return and five SEO endpoints',JSON.stringify({base,publicDnsRoute:publicIp}));
 } finally {ws?.close();spawnSync('taskkill',['/PID',String(browser.pid),'/T','/F'],{stdio:'ignore'});}

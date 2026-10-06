@@ -387,3 +387,8 @@
 ### Share card game-style refinement (2026-10-06)
 - User chose existing result UI as the dominant reference; rounded purple character/tier panels, original curated character identity, large tier and four stat grades. Favorite footer retained. Actual result UI and engine/payment/settings unchanged.
 - Character model explicitly copies emoji/name/tagline only; raw element/day-stem label and private data excluded. Check and Cloudflare build passed; UI browser 45/45 passed. Production verification follows release.
+
+### Result-card SNS chooser (2026-10-06)
+- User requested named SNS buttons leading to apps. Added KakaoTalk, Instagram image-sheet, Threads and X compose entry points, plus explicit device-dependent fallback guidance. No automatic publishing, server image storage, new dependency, SEO/engine/payment/LIVE changes.
+- Check 260 tests passed. Typecheck and Cloudflare production build passed. Final UI tests and public verification follow before release completion.
+- Final browser UI 49/49 passed including SDK payload, compose URLs, Instagram PNG-only share and unsupported fallback; no real SNS transmission. Public production verification follows deployment.

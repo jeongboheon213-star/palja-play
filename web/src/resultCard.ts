@@ -1,5 +1,5 @@
 import { resultCardUrl, type ResultCardModel } from '../../src/lib/share/resultCard';
-import { copyText } from './shareTools';
+import { copyText, KAKAO_ENABLED, prepareKakaoShare, shareResultKakao } from './shareTools';
 
 type Action = 'result_share_open' | 'result_card_created' | 'result_share_native' | 'result_image_download' | 'result_link_copy';
 export function drawResultCard(model: ResultCardModel): HTMLCanvasElement {
@@ -49,6 +49,7 @@ export function drawResultCard(model: ResultCardModel): HTMLCanvasElement {
 export function openResultCard(model: ResultCardModel, track: (action: Action, method?: string) => void) {
   document.getElementById('result-card-dialog')?.remove();
   track('result_share_open');
+  prepareKakaoShare();
   const opener = document.getElementById('result-share-open') ?? document.activeElement as HTMLElement | null;
   const dialog = document.createElement('dialog'); dialog.id = 'result-card-dialog';
   dialog.setAttribute('aria-labelledby', 'result-card-title');
@@ -60,13 +61,40 @@ export function openResultCard(model: ResultCardModel, track: (action: Action, m
   const preview = document.createElement('div'); preview.id = 'result-card-preview';
   const actions = document.createElement('div'); actions.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:16px';
   const button = (id: string, title: string) => { const b = document.createElement('button'); b.id = id; b.type = 'button'; b.className = 'btn ghost'; b.textContent = title; b.style.cssText = 'flex:1 1 110px;margin:0;min-height:48px'; actions.append(b); return b; };
-  const native = button('result-card-share', '공유하기');
+  const native = button('result-card-share', '다른 앱으로 공유');
   const save = button('result-card-save', '이미지 저장');
   const copy = button('result-card-copy', '링크 복사');
   native.disabled = save.disabled = true;
+  const socials = document.createElement('div'); socials.id = 'result-card-socials';
+  socials.style.cssText = 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0';
+  const social = (id: string, label: string, background: string, color = '#fff') => {
+    const b = document.createElement('button'); b.type = 'button'; b.id = id; b.textContent = label;
+    b.style.cssText = 'border:1px solid #ffffff30;border-radius:14px;min-height:56px;padding:10px 6px;font:700 15px sans-serif;cursor:pointer;background:' + background + ';color:' + color;
+    socials.append(b); return b;
+  };
+  const kakao = social('result-card-kakao', '카카오톡', '#FEE500', '#191919');
+  const instagram = social('result-card-instagram', 'Instagram · 이미지', 'linear-gradient(120deg,#8845c6,#cf2873,#bd541d)');
+  const threads = social('result-card-threads', 'Threads · 링크', '#151515');
+  const x = social('result-card-x', 'X · 링크', '#151515');
+  instagram.disabled = true;
+  kakao.disabled = !KAKAO_ENABLED;
+  kakao.title = KAKAO_ENABLED ? '카카오톡 공유 창 열기' : '휴대폰 공유 목록에서 카카오톡 선택';
+  const socialHelp = document.createElement('p'); socialHelp.className = 'mute small';
+  socialHelp.textContent = '앱 설치와 기기에 따라 앱 또는 웹이 열려요. Instagram은 공유 목록에서 선택해 주세요. Threads·X에는 링크를 보내며, 카드 이미지는 저장 후 첨부할 수 있어요.';
+  const externalLink = (label: string, url: string) => {
+    const a = document.createElement('a'); a.textContent = label; a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.cssText = 'display:inline-block;margin:8px 12px 0 0;color:#c7c9ff'; status.append(' ', a);
+  };
+  const postText = model.tier + ' TIER! 너는 몇 티어? 무료로 내 팔자 확인하기';
+  const openPost = (platform: 'threads' | 'x') => {
+    const url = platform === 'threads' ? 'https://www.threads.com/intent/post?text=' + encodeURIComponent(postText + '\n' + resultCardUrl()) : 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(postText) + '&url=' + encodeURIComponent(resultCardUrl());
+    window.open(url, '_blank', 'noopener,noreferrer');
+    status.textContent = '글쓰기 창이 열리면 게시 전 문구를 확인하고, 카드를 넣으려면 이미지를 저장해 첨부해 주세요.';
+    externalLink('글쓰기 창 다시 열기', url);
+  };
+  threads.onclick = () => openPost('threads'); x.onclick = () => openPost('x');
   const link = document.createElement('input'); link.id = 'result-card-link'; link.readOnly = true; link.value = resultCardUrl(); link.setAttribute('aria-label', '직접 복사할 공유 링크'); link.hidden = true; link.style.cssText = 'box-sizing:border-box;width:100%;margin-top:12px';
   const help = document.createElement('p'); help.className = 'mute small'; help.textContent = '이미지를 저장해 Instagram·스토리에 직접 올릴 수 있어요. 공유 앱은 브라우저와 기기에 따라 달라요. 생년월일·이름은 카드에 포함되지 않아요.';
-  dialog.append(heading, preview, status, actions, link, help, close); document.body.append(dialog); dialog.showModal();
+  dialog.append(heading, socials, socialHelp, status, preview, actions, link, help, close); document.body.append(dialog); dialog.showModal();
   let objectUrl: string | null = null, file: File | null = null;
   dialog.addEventListener('close', () => { if (objectUrl) URL.revokeObjectURL(objectUrl); dialog.remove(); opener?.focus(); }, { once: true });
   copy.onclick = async () => {
@@ -91,6 +119,37 @@ export function openResultCard(model: ResultCardModel, track: (action: Action, m
       track('result_share_native', files ? 'image' : 'link'); status.textContent = files ? '공유 앱에 전달했어요.' : '링크를 전달했어요. 카드는 이미지 저장으로 보낼 수 있어요.';
     } catch (error) { status.textContent = error instanceof DOMException && error.name === 'AbortError' ? '공유를 취소했어요.' : '공유를 열지 못했어요. 이미지 저장 또는 링크 복사를 사용해 주세요.'; }
   };
+  kakao.onclick = async () => {
+    if (!KAKAO_ENABLED) {
+      status.textContent = '공유 목록에서 카카오톡을 선택해 주세요. 지원하지 않으면 링크를 복사해 카카오톡에 붙여 넣을 수 있어요.';
+      native.click(); return;
+    }
+    kakao.disabled = true;
+    const opened = await shareResultKakao(postText, resultCardUrl());
+    kakao.disabled = false;
+    if (!dialog.isConnected) return;
+    status.textContent = opened ? '카카오톡 공유 창에서 받을 친구를 선택해 주세요. 카드 이미지는 이미지 저장으로 보낼 수 있어요.' : '카카오톡 공유 창을 열지 못했어요. 다른 앱으로 공유 또는 링크 복사를 사용해 주세요.';
+  };
+  const imageFallback = () => {
+    status.textContent = '이미지 저장을 누른 뒤 Instagram에서 새 게시물이나 스토리에 카드를 선택해 주세요.';
+    externalLink('Instagram 열기', 'https://www.instagram.com/');
+  };
+  instagram.onclick = async () => {
+    if (!file) return;
+    try {
+      if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function' || !navigator.canShare({ files: [file] })) { imageFallback(); return; }
+      status.textContent = '휴대폰 공유 목록에서 Instagram을 선택해 주세요.';
+      await navigator.share({ files: [file] });
+      if (!dialog.isConnected) return;
+      track('result_share_native', 'image-sheet');
+      status.textContent = '공유 창에 카드를 전달했어요. Instagram이 목록에 없다면 이미지를 저장해 직접 올려 주세요.';
+      externalLink('Instagram 열기', 'https://www.instagram.com/');
+    } catch (error) {
+      if (!dialog.isConnected) return;
+      if (error instanceof DOMException && error.name === 'AbortError') status.textContent = '공유를 취소했어요.';
+      else imageFallback();
+    }
+  };
   void (async () => {
     try {
       await Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 2500))]);
@@ -101,7 +160,7 @@ export function openResultCard(model: ResultCardModel, track: (action: Action, m
       file = new File([blob], 'paljaplay-result.png', { type: 'image/png' }); objectUrl = URL.createObjectURL(blob);
       const image = document.createElement('img'); image.id = 'result-card-image'; image.src = objectUrl; image.style.cssText = 'display:block;width:100%;height:auto;border-radius:12px';
       image.alt = `${model.tier} TIER, ${model.rankLabel}. ${model.stats.map(s => `${s.label} ${s.tier}`).join(', ')}. ${model.line}. 너는 몇 티어? paljaplay.com`;
-      preview.append(image); native.disabled = save.disabled = false; status.textContent = '카드가 준비됐어요. 1080 × 1350 PNG'; track('result_card_created');
+      preview.append(image); native.disabled = save.disabled = instagram.disabled = kakao.disabled = false; status.textContent = '카드가 준비됐어요. 1080 × 1350 PNG'; track('result_card_created');
     } catch { if (dialog.isConnected) status.textContent = '이미지를 만들지 못했어요. 링크 복사는 사용할 수 있어요.'; }
   })();
 }

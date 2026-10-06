@@ -1,3 +1,4 @@
+import strictAssert from 'node:assert/strict';
 // 실제 브라우저 E2E (Microsoft Edge/Chrome headless + DevTools Protocol). 추가 npm 패키지 없음.
 //
 //   npm run e2e         (dist-dev 빌드 후 실행)
@@ -317,6 +318,30 @@ await check('공유카드: Web Share 미지원·클립보드 거부 직접 복�
   await click('#result-card-copy'); await sleep(150);
   assert(await evaluate("!document.getElementById('result-card-link').hidden"),'직접 복사 입력');
   await evaluate(`document.execCommand=window.__cardExec;Object.defineProperty(navigator,'share',{value:window.__cardOriginalShare,configurable:true});Object.defineProperty(navigator,'canShare',{value:window.__cardOriginalCanShare,configurable:true});true`);
+});
+await check('SNS 버튼: 카카오톡·Instagram·Threads·X 표시와 모바일 가로 넘침 없음', async () => {
+  assert(await evaluate("['kakao','instagram','threads','x'].every(k=>!!document.getElementById('result-card-'+k)) && document.getElementById('result-card-dialog').scrollWidth<=document.getElementById('result-card-dialog').clientWidth"), 'SNS 선택');
+});
+await check('SNS 글쓰기: Threads·X 고정 공개 링크, 자동 게시 없음', async () => {
+  await evaluate("window.__cardOpenOriginal=window.open;window.open=(url)=>{window.__cardPostUrl=url;return null};true");
+  await click('#result-card-threads');
+  let url=new URL(await evaluate('window.__cardPostUrl'));strictAssert.equal(url.origin,'https://www.threads.com');strictAssert.equal(url.pathname,'/intent/post');assert(url.searchParams.get('text').includes('https://www.paljaplay.com/?utm_source=share&utm_medium=result_card'));
+  await click('#result-card-x');url=new URL(await evaluate('window.__cardPostUrl'));strictAssert.equal(url.searchParams.get('url'),'https://www.paljaplay.com/?utm_source=share&utm_medium=result_card');assert(!/1990|05-15|male|purchaseCode/.test(url.toString()));
+  await evaluate('window.open=window.__cardOpenOriginal;true');
+});
+await check('SNS 카카오톡: SDK 링크 전달값 검사 (실제 전송 아님)', async () => {
+  await evaluate("window.__cardKakaoOriginal=window.Kakao;window.Kakao={isInitialized:()=>true,Share:{sendDefault:data=>{window.__cardKakaoData=data}}};true");
+  await click('#result-card-kakao');await sleep(100);
+  const data=await evaluate('window.__cardKakaoData');strictAssert.equal(data.objectType,'text');strictAssert.equal(data.link.webUrl,'https://www.paljaplay.com/?utm_source=share&utm_medium=result_card');strictAssert.equal(data.link.mobileWebUrl,data.link.webUrl);
+  await evaluate('window.Kakao=window.__cardKakaoOriginal;true');
+});
+await check('SNS Instagram: 파일만 전달하고 미지원이면 저장·앱 열기 안내', async () => {
+  await evaluate("Object.defineProperty(navigator,'canShare',{value:()=>true,configurable:true});Object.defineProperty(navigator,'share',{value:async data=>{window.__instagramData={keys:Object.keys(data),type:data.files[0].type}},configurable:true});true");
+  await click('#result-card-instagram');await sleep(100);
+  const data=await evaluate('window.__instagramData');strictAssert.deepEqual(data.keys,['files']);strictAssert.equal(data.type,'image/png');
+  await evaluate("Object.defineProperty(navigator,'canShare',{value:()=>false,configurable:true});true");await click('#result-card-instagram');await sleep(100);
+  assert(await evaluate("document.getElementById('result-card-status').textContent.includes('이미지 저장') && document.querySelector('#result-card-status a').href==='https://www.instagram.com/'"),'저장 후 앱 열기');
+  await evaluate("Object.defineProperty(navigator,'share',{value:window.__cardOriginalShare,configurable:true});Object.defineProperty(navigator,'canShare',{value:window.__cardOriginalCanShare,configurable:true});true");
 });
 await click('#result-card-close');
 await check('공유카드: 닫으면 기존 결과·티어 유지하고 포커스 복귀',async()=>{

@@ -104,3 +104,16 @@ export async function shareKakao(share: BattleShare): Promise<boolean> {
     return false;
   }
 }
+
+/** Result-card link only. Does not upload images or publish posts. */
+export function prepareKakaoShare(): void {
+  if (KAKAO_ENABLED) void loadKakao().catch(() => {});
+}
+export async function shareResultKakao(text: string, url: string): Promise<boolean> {
+  if (!KAKAO_ENABLED) return false;
+  try {
+    const K = await loadKakao();
+    K.Share.sendDefault({ objectType: 'text', text: text.slice(0, 200), link: { mobileWebUrl: url, webUrl: url }, buttonTitle: '내 팔자 확인하기' });
+    return true;
+  } catch { return false; }
+}
