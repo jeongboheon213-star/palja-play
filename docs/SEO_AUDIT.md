@@ -1,5 +1,20 @@
 # 팔자PLAY 검색 유입 감사 — 2026-10-06
 
+## 운영 반영 전 최종 검증 (최신 판단)
+
+사용자가 확정한 대표 주소는 **https://www.paljaplay.com**이다. 아래 초기 감사의 apex 주소 제안은 이 결정으로 대체한다. 메인·/free-saju·/guide/saju의 canonical, og:url, JSON-LD 및 sitemap/robots 생성 주소를 www 기준으로 수정했다.
+
+- npm run check: 257개 통과, 실패/건너뜀 0. npm run build와 npm run build:cloudflare 모두 성공.
+- 운영 빌드 dist를 로컬 HTTP로 제공해 5개 URL 모두 200 확인. robots는 text/plain, sitemap은 application/xml이며 메인 HTML이 아니다. 서로 다른 제목/설명, www canonical, 일반 a 링크 및 sitemap의 정확한 3개 URL을 검증했다.
+- 기존 AdSense 검증 스크립트 1개 통과. 광고 설정/계산/티어/배틀/결제/LIVE/환경 변수는 변경하지 않았다. 로컬 빌드는 운영 환경 변수가 없는 상태이며 실제 결제나 운영 사용자 흐름 전체를 검증한 것은 아니다.
+- 실제 www 운영 응답: 루트는 기존 메인 HTML 200. 새 페이지 두 경로와 robots/sitemap도 기존 메인 HTML 200을 반환하므로 SEO 운영 반영은 아직 실패/미완료다.
+- apex는 www로 308 영구 이동하며 /free-saju의 경로와 쿼리도 보존한다. 이번 작업에서 도메인 설정은 변경하지 않았다. 기존 Vercel 주소는 여전히 200으로 중복 후보다.
+- main 병합 보류: origin/main 대비 87개 파일 변경이 포함되며 결제/관리자 등 SEO 밖의 변경도 들어간다. 현재 운영 브랜치 chatgpt/payment-tier-phase2 대비 SEO 변경은 8개 파일이다. vercel.json은 main 배포를 활성화한다. Cloudflare의 실제 Production branch를 대시보드에서 다시 확인하고 배포 경로를 확정해야 한다. main 병합이 현재 www 운영 배포를 안전하게 수행한다고 판단할 수 없다.
+- 안전한 다음 단계: Cloudflare Production branch를 확인한 뒤 SEO 8개 파일만 현재 운영 기준에 반영하는 경로 또는 main 통합을 별도로 결정한다. Vercel 중복은 기존 API/결제 callback 의존성을 확인한 뒤 공개 페이지 GET/HEAD 이동만 별도 설정한다. 이번 작업에서는 어느 호스팅 설정도 변경하지 않았다.
+- main 병합/운영 배포/Search Console 제출은 수행하지 않았다. 운영 robots/sitemap이 올바른 파일을 반환하기 전 제출하지 않는다.
+
+이하 표는 초기 감사 당시의 관찰이며 최신 운영 결과는 위 기록을 우선한다.
+
 ## 범위와 결론
 
 실제 저장소 코드와 세 공개 주소의 HTTP 응답을 확인했다. Search Console/네이버 서치어드바이저 계정의 색인·검색량·순위는 조회하지 않았다. 검색 로봇의 실제 크롤링 성공이나 현재 순위를 검증했다고 말하지 않는다.

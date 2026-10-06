@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 
-export const SEO_ORIGIN = 'https://paljaplay.com';
+export const SEO_ORIGIN = 'https://www.paljaplay.com';
 export function seoHtml(html, { dev = false, path = '/', title = '무료 사주팔자 테스트 · 캐릭터와 능력치 | 팔자PLAY', description = '생년월일로 사주 캐릭터와 성격·재물·연애·직업·사업 성향을 게임처럼 확인하세요. 가입 없이 즐기는 팔자PLAY Beta. 양력·대한민국 출생을 지원합니다.' } = {}) {
   const metadata = [
     `<link rel="canonical" href="${SEO_ORIGIN}${path}">`,
