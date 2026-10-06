@@ -383,3 +383,7 @@
 - Existing share_click action metadata distinguishes five card actions; landing_view via=result_card distinguishes incoming fixed anonymous UTM. No new DB event names, migrations, packages or settings.
 - Check 260 tests PASS; Cloudflare build PASS; UI E2E 45/45, battle 34/34, mock payment browser 10/10, AdSense 1/1. Payment test now waits for complete app initialization before clicks; production payment code unchanged. Native sharing is mocked in headless tests, not actual SNS app proof.
 - Production smoke script and details: docs/RESULT_SHARE_CARD.md. Deployment/public checks follow after final diff review. Existing ISP DNS mismatch remains separate; no DNS/WAF changes.
+
+### Share card game-style refinement (2026-10-06)
+- User chose existing result UI as the dominant reference; rounded purple character/tier panels, original curated character identity, large tier and four stat grades. Favorite footer retained. Actual result UI and engine/payment/settings unchanged.
+- Character model explicitly copies emoji/name/tagline only; raw element/day-stem label and private data excluded. Check and Cloudflare build passed; UI browser 45/45 passed. Production verification follows release.

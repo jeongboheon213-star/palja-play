@@ -8,25 +8,37 @@ export function drawResultCard(model: ResultCardModel): HTMLCanvasElement {
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas unavailable');
   const bg = ctx.createLinearGradient(0, 0, 1080, 1350);
-  bg.addColorStop(0, '#262440'); bg.addColorStop(1, '#111525');
+  bg.addColorStop(0, '#202143'); bg.addColorStop(1, '#13162d');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, 1080, 1350);
-  ctx.strokeStyle = '#6d6252'; ctx.lineWidth = 2; ctx.strokeRect(42, 42, 996, 1266);
-  const text = (value: string, y: number, size: number, color = '#f4eee4', weight = '600') => {
-    ctx.fillStyle = color; ctx.font = `${weight} ${size}px "Noto Sans KR", sans-serif`; ctx.textAlign = 'center';
-    ctx.fillText(value, 540, y, 936);
+  const text = (value: string, y: number, size: number, color = '#f4f3ff', weight = '600') => {
+    ctx.fillStyle = color; ctx.font = weight + ' ' + size + 'px "Noto Sans KR", sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(value, 540, y, 900);
   };
-  text('사주팔자PLAY', 130, 38, '#a7d3c4');
-  text('MY PLAY TIER', 231, 28, '#ccb887');
-  text(`${model.tier} TIER`, 417, 160, '#ead297', '900');
-  text(model.rankLabel, 492, 42);
-  text('내 팔자를 게임처럼', 551, 27, '#b7b4c9', '400');
+  const panel = (y: number, height: number) => {
+    const fill = ctx.createLinearGradient(60, y, 1020, y + height);
+    fill.addColorStop(0, '#2b2d58'); fill.addColorStop(1, '#1c1e3d');
+    ctx.fillStyle = fill; ctx.strokeStyle = '#515386'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(60, y, 960, height, 40); ctx.fill(); ctx.stroke();
+  };
+  text('사주팔자PLAY · 내 팔자 캐릭터', 83, 30, '#c7c9ff');
+  panel(116, 342);
+  text(model.character?.emoji ?? '🎮', 244, 100);
+  text(model.character?.name ?? '내 PLAY 캐릭터', 332, 56, '#ffffff', '900');
+  text(model.character?.tagline ?? '내 팔자를 게임처럼', 402, 30, '#dce0ff');
+  panel(482, 232);
+  text('🏆 내 팔자 티어', 543, 36, '#f4f3ff', '800');
+  text(model.tier + ' TIER', 639, 90, '#ffffff', '900');
+  text(model.rankLabel, 688, 32, '#ead297');
+  const icons = ['💰', '❤️', '💼', '🔥'];
   model.stats.forEach((s, i) => {
-    const x = 92 + (i % 2) * 466, y = 608 + Math.floor(i / 2) * 151;
-    ctx.fillStyle = '#ffffff0d'; ctx.beginPath(); ctx.roundRect(x, y, 430, 125, 18); ctx.fill();
-    ctx.textAlign = 'left'; ctx.fillStyle = '#c4c5d4'; ctx.font = '500 32px "Noto Sans KR", sans-serif'; ctx.fillText(s.label, x + 28, y + 73);
-    ctx.textAlign = 'right'; ctx.fillStyle = '#a7d3c4'; ctx.font = '800 52px sans-serif'; ctx.fillText(s.tier, x + 402, y + 78);
+    const x = 60 + (i % 2) * 490, y = 738 + Math.floor(i / 2) * 100;
+    ctx.fillStyle = '#27294f'; ctx.strokeStyle = '#515386'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(x, y, 470, 82, 22); ctx.fill(); ctx.stroke();
+    ctx.textAlign = 'left'; ctx.fillStyle = '#f4f3ff'; ctx.font = '700 32px "Noto Sans KR", sans-serif'; ctx.fillText(icons[i] + ' ' + s.label, x + 24, y + 54);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#ead297'; ctx.font = '900 44px sans-serif'; ctx.fillText(s.tier, x + 443, y + 56);
   });
-  text(model.line, 980, 34);
+  text(model.line, 990, 30, '#c7c9ff');
+  ctx.strokeStyle = '#515386'; ctx.beginPath(); ctx.moveTo(180, 1034); ctx.lineTo(900, 1034); ctx.stroke();
   text('너는 몇 티어?', 1105, 57, '#ead297', '800');
   text('무료로 내 팔자 확인하기', 1167, 32);
   text('paljaplay.com', 1231, 38, '#a7d3c4');

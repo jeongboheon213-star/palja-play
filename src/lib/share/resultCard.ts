@@ -4,7 +4,7 @@ import type { StatKey } from '../interpretation/types';
 type ExistingTiers = { readonly total: TierResult; readonly stats: readonly (TierResult & { readonly stat: StatKey })[] };
 const FEATURED = ['wealth', 'love', 'business', 'execution'] as const;
 const LABELS = { wealth: '재물력', love: '연애력', business: '사업력', execution: '실행력' };
-export function resultCardModel(tiers: ExistingTiers) {
+export function resultCardModel(tiers: ExistingTiers, character?: { readonly emoji: string; readonly name: string; readonly tagline: string }) {
   const stats = FEATURED.map(key => {
     const stat = tiers.stats.find(s => s.stat === key);
     if (!stat) throw new Error('Missing result stat');
@@ -14,6 +14,7 @@ export function resultCardModel(tiers: ExistingTiers) {
   const spread = Math.max(...stats.map(s => s.topPercent)) - Math.min(...stats.map(s => s.topPercent));
   const line = spread >= 30 ? `${best.label}에 힘이 몰린 내 PLAY 캐릭터` : '고르게 갖춘 능력치, 친구와 비교해볼까?';
   return Object.freeze({ tier: tiers.total.tier, topPercent: tiers.total.topPercent, percentile: tiers.total.percentile,
+    character: character ? Object.freeze({ emoji: character.emoji, name: character.name, tagline: character.tagline }) : null,
     rankLabel: tiers.total.label.replace('사주팔자PLAY 기준', 'PLAY 기준'), stats: Object.freeze(stats), line });
 }
 export type ResultCardModel = ReturnType<typeof resultCardModel>;

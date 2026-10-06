@@ -15,7 +15,10 @@ test('result card preserves existing tiers, percentiles and scores across divers
 });
 test('share card whitelist excludes private data even if supplied by the caller', () => {
   const source = { ...tiersForScores([90,20,70,50,60,80,40]), birthDate:'1990-05-15', rawInput:{gender:'male'}, purchaseCode:'private' };
-  const json = JSON.stringify(resultCardModel(source));
+  const character = { emoji: '💎', name: '예리한 완벽주의자', tagline: '디테일에서 차이를 만드는 사람', elementLabel: 'private pillar', birthDate: '1990-05-15' };
+  const card = resultCardModel(source, character);
+  assert.deepEqual(card.character, { emoji: character.emoji, name: character.name, tagline: character.tagline });
+  const json = JSON.stringify(card);
   assert(!/birthDate|rawInput|gender|purchaseCode|1990-05-15|private/.test(json));
 });
 test('result link has only fixed anonymous attribution; incoming attribution recognizes only exact allowed values', () => {

@@ -234,7 +234,7 @@ function renderResult(c: Current): void {
       h("p", {}, `TOP 능력치 · ${v.stats.find((s) => s.key === tiers.topStat.stat)!.label} ${tiers.topStat.tier}`),
       h("p", { class: "mute small" }, tiers.topStat.label),
       h("p", { class: "mute small" }, "PLAY 계산 엔진의 고정 표본과 비교한 재미용 지표예요. 실제 인구통계가 아니며, 같은 점수는 같은 등급이에요.")),
-    h("button", { class: "btn ghost", id: "result-share-open", type: "button", onclick: () => openResultCard(resultCardModel(tiers), (action, method) => rt.track("share_click", { mode: "result_card", action, method: method ?? "none" }, c.resultId)) }, "내 팔자 카드 공유하기"),
+    h("button", { class: "btn ghost", id: "result-share-open", type: "button", onclick: () => openResultCard(resultCardModel(tiers, v.character), (action, method) => rt.track("share_click", { mode: "result_card", action, method: method ?? "none" }, c.resultId)) }, "내 팔자 카드 공유하기"),
     h("p", { class: "hint" }, "나와 얼마나 비슷한지 내려가면서 확인해보세요 👇"),
     v.notices.map((n) => h("div", { class: "notice" }, n)),
 
