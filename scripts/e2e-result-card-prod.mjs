@@ -40,10 +40,24 @@ try {
   assert.equal(card.width,1080);assert.equal(card.height,1350);assert(!card.overflow);assert(card.alt.includes(tierBefore.match(/[A-Z]\+? TIER/)[0]));assert(!/1990|05-15|male|purchaseCode|pillars/.test(card.alt+card.link));assert.equal(card.link,base+'/?utm_source=share&utm_medium=result_card');
   const socialButtons=await ev("['kakao','instagram','threads','x'].map(k=>({id:k,label:document.getElementById('result-card-'+k)?.textContent,title:document.getElementById('result-card-'+k)?.title}))");
   assert(socialButtons.every(b=>b.label),'Production SNS buttons');
+  let kakaoUpload = null;
+  if (process.env.PALJA_TEST_KAKAO_UPLOAD === '1') {
+    await wait(()=>ev("!!window.Kakao?.Share"));
+    await ev("window.__kakaoSendOriginal=window.Kakao.Share.sendDefault;window.Kakao.Share.sendDefault=data=>{window.__kakaoFeed=data};true");
+    await ev("document.getElementById('result-card-kakao').click();true");
+    await wait(()=>ev("!document.getElementById('result-card-kakao').disabled"));
+    assert(await ev("document.getElementById('result-card-kakao').textContent==='카카오톡으로 보내기'"), 'Real Kakao image upload');
+    await ev("document.getElementById('result-card-kakao').click();true");
+    const feed=await ev('window.__kakaoFeed');assert.equal(feed.objectType,'feed');assert.equal(feed.content.link.webUrl,base+'/?utm_source=share&utm_medium=result_card');assert.match(feed.content.imageUrl,/^https:/);
+    const dims=await ev('new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve({width:im.naturalWidth,height:im.naturalHeight});im.onerror=()=>reject(Error("Kakao image unavailable"));im.src=window.__kakaoFeed.content.imageUrl})');
+    assert.equal(dims.width,1080);assert.equal(dims.height,1350);
+    kakaoUpload={imageLoaded:true,...dims,messageType:feed.objectType,recipientSendIntercepted:true};
+    await ev('window.Kakao.Share.sendDefault=window.__kakaoSendOriginal;true');
+  }
   const png=await ev(`fetch(document.getElementById('result-card-image').src).then(r=>r.blob()).then(b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)}))`);
   writeFileSync('e2e-artifacts/result-share-card-production.png',Buffer.from(png.split(',')[1],'base64'));
   await ev("document.getElementById('result-card-close').click();true");await wait(()=>ev("!document.getElementById('result-card-dialog')"));
   assert.equal(await ev("document.getElementById('palja-tier').innerText"),tierBefore);assert.equal(errors.length,0);
-  const report={at:new Date().toISOString(),base,publicDnsRoute:publicIp,urls:urls.map(({text,...row})=>row),card,socialButtons,errors};writeFileSync('e2e-artifacts/result-card-production.json',JSON.stringify(report,null,2));
+  const report={at:new Date().toISOString(),base,publicDnsRoute:publicIp,urls:urls.map(({text,...row})=>row),card,socialButtons,kakaoUpload,errors};writeFileSync('e2e-artifacts/result-card-production.json',JSON.stringify(report,null,2));
   console.log('PASS: actual production calculation/tier/card PNG/private-data exclusion/modal return and five SEO endpoints',JSON.stringify({base,publicDnsRoute:publicIp}));
 } finally {ws?.close();spawnSync('taskkill',['/PID',String(browser.pid),'/T','/F'],{stdio:'ignore'});}

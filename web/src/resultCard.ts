@@ -1,5 +1,5 @@
 import { resultCardUrl, type ResultCardModel } from '../../src/lib/share/resultCard';
-import { copyText, KAKAO_ENABLED, prepareKakaoShare, shareResultKakao } from './shareTools';
+import { copyText, KAKAO_ENABLED, prepareKakaoShare, shareResultKakao, uploadResultKakao } from './shareTools';
 
 type Action = 'result_share_open' | 'result_card_created' | 'result_share_native' | 'result_image_download' | 'result_link_copy';
 export function drawResultCard(model: ResultCardModel): HTMLCanvasElement {
@@ -77,10 +77,10 @@ export function openResultCard(model: ResultCardModel, track: (action: Action, m
   const threads = social('result-card-threads', 'Threads · 링크', '#151515');
   const x = social('result-card-x', 'X · 링크', '#151515');
   instagram.disabled = true;
-  kakao.disabled = !KAKAO_ENABLED;
+  kakao.disabled = true;
   kakao.title = KAKAO_ENABLED ? '카카오톡 공유 창 열기' : '휴대폰 공유 목록에서 카카오톡 선택';
   const socialHelp = document.createElement('p'); socialHelp.className = 'mute small';
-  socialHelp.textContent = '앱 설치와 기기에 따라 앱 또는 웹이 열려요. Instagram은 공유 목록에서 선택해 주세요. Threads·X에는 링크를 보내며, 카드 이미지는 저장 후 첨부할 수 있어요.';
+  socialHelp.textContent = '카카오톡을 누르면 카드 이미지만 카카오 서버에 업로드됩니다. 앱 설치와 기기에 따라 앱 또는 웹이 열려요. Instagram은 공유 목록에서 선택해 주세요. Threads·X에는 링크를 보내며, 카드 이미지는 저장 후 첨부할 수 있어요.';
   const externalLink = (label: string, url: string) => {
     const a = document.createElement('a'); a.textContent = label; a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.cssText = 'display:inline-block;margin:8px 12px 0 0;color:#c7c9ff'; status.append(' ', a);
   };
@@ -95,7 +95,7 @@ export function openResultCard(model: ResultCardModel, track: (action: Action, m
   const link = document.createElement('input'); link.id = 'result-card-link'; link.readOnly = true; link.value = resultCardUrl(); link.setAttribute('aria-label', '직접 복사할 공유 링크'); link.hidden = true; link.style.cssText = 'box-sizing:border-box;width:100%;margin-top:12px';
   const help = document.createElement('p'); help.className = 'mute small'; help.textContent = '이미지를 저장해 Instagram·스토리에 직접 올릴 수 있어요. 공유 앱은 브라우저와 기기에 따라 달라요. 생년월일·이름은 카드에 포함되지 않아요.';
   dialog.append(heading, socials, socialHelp, status, preview, actions, link, help, close); document.body.append(dialog); dialog.showModal();
-  let objectUrl: string | null = null, file: File | null = null;
+  let objectUrl: string | null = null, file: File | null = null, kakaoImageUrl: string | null = null;
   dialog.addEventListener('close', () => { if (objectUrl) URL.revokeObjectURL(objectUrl); dialog.remove(); opener?.focus(); }, { once: true });
   copy.onclick = async () => {
     const method = await copyText(resultCardUrl());
@@ -124,11 +124,20 @@ export function openResultCard(model: ResultCardModel, track: (action: Action, m
       status.textContent = '공유 목록에서 카카오톡을 선택해 주세요. 지원하지 않으면 링크를 복사해 카카오톡에 붙여 넣을 수 있어요.';
       native.click(); return;
     }
-    kakao.disabled = true;
-    const opened = await shareResultKakao(postText, resultCardUrl());
-    kakao.disabled = false;
-    if (!dialog.isConnected) return;
-    status.textContent = opened ? '카카오톡 공유 창에서 받을 친구를 선택해 주세요. 카드 이미지는 이미지 저장으로 보낼 수 있어요.' : '카카오톡 공유 창을 열지 못했어요. 다른 앱으로 공유 또는 링크 복사를 사용해 주세요.';
+    if (!file) return;
+    if (!kakaoImageUrl) {
+      kakao.disabled = true; status.textContent = '내 카드 이미지를 카카오에 준비하고 있어요…';
+      try {
+        kakaoImageUrl = await uploadResultKakao(file);
+        if (!dialog.isConnected) return;
+        kakao.textContent = '카카오톡으로 보내기';
+        status.textContent = '카드가 준비됐어요. 카카오톡 버튼을 한 번 더 눌러 받을 친구를 선택해 주세요.';
+      } catch { if (dialog.isConnected) status.textContent = '카드 업로드에 실패했어요. 다시 시도하거나 이미지 저장으로 보내 주세요.'; }
+      finally { kakao.disabled = false; }
+      return;
+    }
+    const opened = shareResultKakao(postText, resultCardUrl(), kakaoImageUrl);
+    status.textContent = opened ? '카카오톡 공유 창에서 받을 친구를 선택해 주세요. 내 카드 이미지가 함께 전달됩니다.' : '공유 창을 열지 못했어요. 다시 누르거나 이미지 저장을 사용해 주세요.';
   };
   const imageFallback = () => {
     status.textContent = '이미지 저장을 누른 뒤 Instagram에서 새 게시물이나 스토리에 카드를 선택해 주세요.';

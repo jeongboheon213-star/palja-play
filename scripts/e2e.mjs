@@ -330,9 +330,9 @@ await check('SNS 글쓰기: Threads·X 고정 공개 링크, 자동 게시 없�
   await evaluate('window.open=window.__cardOpenOriginal;true');
 });
 await check('SNS 카카오톡: SDK 링크 전달값 검사 (실제 전송 아님)', async () => {
-  await evaluate("window.__cardKakaoOriginal=window.Kakao;window.Kakao={isInitialized:()=>true,Share:{sendDefault:data=>{window.__cardKakaoData=data}}};true");
-  await click('#result-card-kakao');await sleep(100);
-  const data=await evaluate('window.__cardKakaoData');strictAssert.equal(data.objectType,'text');strictAssert.equal(data.link.webUrl,'https://www.paljaplay.com/?utm_source=share&utm_medium=result_card');strictAssert.equal(data.link.mobileWebUrl,data.link.webUrl);
+  await evaluate("window.__cardKakaoOriginal=window.Kakao;window.Kakao={isInitialized:()=>true,Share:{uploadImage:async data=>{window.__cardUpload={count:data.file.length,type:data.file[0].type};if(!window.__cardRetried){window.__cardRetried=true;throw Error('upload unavailable')}return {infos:{original:{url:'https://example.com/card.png'}}}},sendDefault:data=>{window.__cardKakaoData=data}}};true");
+  assert(await evaluate('!window.__cardUpload'),'클릭 전 업로드 없음');await click('#result-card-kakao');await sleep(100);assert(await evaluate("document.getElementById('result-card-status').textContent.includes('업로드에 실패') && !document.getElementById('result-card-kakao').disabled && !window.__cardKakaoData"),'업로드 실패는 보내지 않고 재시도');await click('#result-card-kakao');await sleep(100);assert(await evaluate("window.__cardUpload.count===1 && window.__cardUpload.type==='image/png'"),'실제 생성 PNG 업로드');await click('#result-card-kakao');await sleep(100);
+  const data=await evaluate('window.__cardKakaoData');strictAssert.equal(data.objectType,'feed');strictAssert.equal(data.content.imageUrl,'https://example.com/card.png');strictAssert.equal(data.content.link.webUrl,'https://www.paljaplay.com/?utm_source=share&utm_medium=result_card');strictAssert.equal(data.content.link.mobileWebUrl,data.content.link.webUrl);
   await evaluate('window.Kakao=window.__cardKakaoOriginal;true');
 });
 await check('SNS Instagram: 파일만 전달하고 미지원이면 저장·앱 열기 안내', async () => {

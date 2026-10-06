@@ -65,7 +65,7 @@ const KAKAO_SDK = { src: "https://t1.kakaocdn.net/kakao_js_sdk/2.8.3/kakao.min.j
 interface KakaoGlobal {
   init(key: string): void;
   isInitialized(): boolean;
-  Share: { sendDefault(args: unknown): void };
+  Share: { sendDefault(args: unknown): void; uploadImage(args: { file: FileList }): Promise<{ infos: { original: { url: string } } }> };
 }
 
 let kakaoLoading: Promise<KakaoGlobal> | null = null;
@@ -109,11 +109,20 @@ export async function shareKakao(share: BattleShare): Promise<boolean> {
 export function prepareKakaoShare(): void {
   if (KAKAO_ENABLED) void loadKakao().catch(() => {});
 }
-export async function shareResultKakao(text: string, url: string): Promise<boolean> {
-  if (!KAKAO_ENABLED) return false;
+export async function uploadResultKakao(file: File): Promise<string> {
+  if (!KAKAO_ENABLED || file.type !== 'image/png' || file.size > 5 * 1024 * 1024) throw new Error('Image unavailable');
+  const K = await loadKakao();
+  const files = new DataTransfer(); files.items.add(file);
+  const response = await K.Share.uploadImage({ file: files.files });
+  const url = response.infos.original.url;
+  if (new URL(url).protocol !== 'https:') throw new Error('Invalid image URL');
+  return url;
+}
+export function shareResultKakao(text: string, url: string, imageUrl: string): boolean {
+  const K = (window as unknown as { Kakao?: KakaoGlobal }).Kakao;
+  if (!KAKAO_ENABLED || !K) return false;
   try {
-    const K = await loadKakao();
-    K.Share.sendDefault({ objectType: 'text', text: text.slice(0, 200), link: { mobileWebUrl: url, webUrl: url }, buttonTitle: '내 팔자 확인하기' });
+    K.Share.sendDefault({ objectType: 'feed', content: { title: text.slice(0, 200), description: '너는 몇 티어? 무료로 내 팔자 확인하기', imageUrl, imageWidth: 1080, imageHeight: 1350, link: { mobileWebUrl: url, webUrl: url } }, buttons: [{ title: '내 팔자 확인하기', link: { mobileWebUrl: url, webUrl: url } }] });
     return true;
   } catch { return false; }
 }

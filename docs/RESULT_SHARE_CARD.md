@@ -32,3 +32,10 @@ scripts/e2e-result-card-prod.mjs는 실제 www 주소의 계산→카드→복�
 - Threads/X open compose intents with fixed anonymous link and public tier text. They do not attach the locally generated PNG automatically or publish a post. A normal anchor remains for blocked popups. App-vs-browser routing depends on installation and OS link handling.
 - Browser tests mock SDK/share/compose calls; actual device app launching and SNS posting are not claimed tested.
 - References: https://developers.kakao.com/docs/ko/kakaotalk-share/js-link and https://developer.mozilla.org/en-US/docs/Web/API/Navigator/share . Meta web-intents documentation could not be fetched (429); compose destination is tested for correct URL construction, not live authenticated posting.
+
+## Kakao card image correction (2026-10-06, supersedes link-only Kakao)
+- User reported recipient sees homepage instead of personal card and authorized uploading only the public card PNG to Kakao.
+- First Kakao click uploads the generated PNG through official Share.uploadImage, with 5 MB/type checks. Upload is not performed on opening the dialog. Returned image URL is cached only in this dialog.
+- After successful upload the next explicit click calls sendDefault synchronously with a feed template containing imageUrl, original 1080x1350 dimensions, tier title and fixed public CTA link. This second click preserves browser activation after asynchronous upload.
+- Upload failure does not send a plain homepage fallback and allows retry; no private input, names, birth date or payment data are sent. Kakao stores uploaded images up to 100 days per official docs; the site adds no storage.
+- Optional PALJA_TEST_KAKAO_UPLOAD=1 production smoke uploads the generated test card and checks returned image decodes at 1080x1350. It intercepts sendDefault, never sends a message to recipients. Actual received Kakao bubble rendering remains user verification.

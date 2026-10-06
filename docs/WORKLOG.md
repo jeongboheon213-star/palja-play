@@ -392,3 +392,7 @@
 - User requested named SNS buttons leading to apps. Added KakaoTalk, Instagram image-sheet, Threads and X compose entry points, plus explicit device-dependent fallback guidance. No automatic publishing, server image storage, new dependency, SEO/engine/payment/LIVE changes.
 - Check 260 tests passed. Typecheck and Cloudflare production build passed. Final UI tests and public verification follow before release completion.
 - Final browser UI 49/49 passed including SDK payload, compose URLs, Instagram PNG-only share and unsupported fallback; no real SNS transmission. Public production verification follows deployment.
+
+### Kakao result image correction (2026-10-06)
+- User authorized correcting link-only message to personal card image. Added click-only PNG upload plus feed template and explicit second send click to preserve activation; upload failure/retry, no silent link-only send.
+- No engine/tier/battle/payment/LIVE/SEO/environment changes. Check 260 tests and Cloudflare build passed; final browser/private data and real production image checks follow.
