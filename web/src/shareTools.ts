@@ -105,7 +105,7 @@ export async function shareKakao(share: BattleShare): Promise<boolean> {
   }
 }
 
-/** Result-card link only. Does not upload images or publish posts. */
+/** Preload the SDK without uploading or sending anything. */
 export function prepareKakaoShare(): void {
   if (KAKAO_ENABLED) void loadKakao().catch(() => {});
 }
@@ -114,9 +114,11 @@ export async function uploadResultKakao(file: File): Promise<string> {
   const K = await loadKakao();
   const files = new DataTransfer(); files.items.add(file);
   const response = await K.Share.uploadImage({ file: files.files });
-  const url = response.infos.original.url;
-  if (new URL(url).protocol !== 'https:') throw new Error('Invalid image URL');
-  return url;
+  const url = new URL(response.infos.original.url);
+  // Kakao returns an HTTP CDN URL; use its HTTPS endpoint on our secure site.
+  if (url.hostname !== 'k.kakaocdn.net') throw new Error('Invalid image host');
+  url.protocol = 'https:';
+  return url.href;
 }
 export function shareResultKakao(text: string, url: string, imageUrl: string): boolean {
   const K = (window as unknown as { Kakao?: KakaoGlobal }).Kakao;
@@ -126,3 +128,4 @@ export function shareResultKakao(text: string, url: string, imageUrl: string): b
     return true;
   } catch { return false; }
 }
+
