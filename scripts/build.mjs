@@ -9,7 +9,7 @@
 import * as esbuild from "esbuild";
 import { writeAdsenseFiles } from "./adsense-files.mjs";
 import { seoHtml, writeSeoFiles } from "./seo-files.mjs";
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // 어느 폴더에서 실행해도 저장소 루트 기준으로 동작
@@ -84,7 +84,15 @@ mkdirSync(`${outdir}/assets`, { recursive: true });
 mkdirSync(`${outdir}/admin`, { recursive: true });
 cpSync("web/admin.html", `${outdir}/admin/index.html`);
 writeAdsenseFiles(outdir, seoHtml(readFileSync("web/index.html", "utf8"), { dev }), dev || noRemote ? null : process.env.PALJA_ADSENSE_PUBLISHER_ID);
-writeSeoFiles(outdir, { dev });
+cpSync('web/seo.css', `${outdir}/assets/seo.css`);
+for (const [path, source] of [['/free-saju', 'web/free-saju.html'], ['/guide/saju', 'web/saju-guide.html']]) {
+  const html = readFileSync(source, 'utf8');
+  const title = html.match(/<title>(.*?)<\/title>/s)[1];
+  const description = html.match(/<meta name="description" content="([^"]+)"/)[1];
+  mkdirSync(`${outdir}${path}`, { recursive: true });
+  writeFileSync(`${outdir}${path}/index.html`, seoHtml(html, { dev, path, title, description }));
+}
+writeSeoFiles(outdir, { dev, paths: ['/', '/free-saju', '/guide/saju'] });
 if (dev) cpSync("web/debug.html", `${outdir}/debug.html`);
 
 const options = {

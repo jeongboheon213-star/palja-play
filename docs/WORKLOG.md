@@ -370,3 +370,9 @@
 - Added build-time title/description/canonical/OG/summary card/WebSite JSON-LD and genuine robots/sitemap. Proposed apex canonical, domain redirects/old Vercel cleanup/shared image/trust pages remain pending. Existing AdSense ownership retained.
 - Executed npm run check: 257/257 plus type/API checks PASS. Cloudflare build PASS. Node assertions verified metadata uniqueness, JSON-LD, unchanged HTML body, robots/sitemap, dev noindex and AdSense integration. Google URL inspection, Naver account/index checks, mobile real-device/Lighthouse and authenticated payment E2E were not run.
 - User confirmed administrator dashboard now loads real nine feedback rows; prior pending feedback read is resolved by user screenshot.
+
+### First two search entry pages (2026-10-06)
+- User authorized a small initial set. Implemented static /free-saju and /guide/saju on seo/audit-foundation. Separate useful content: free scope/support/read order/FAQ vs terminology/five elements/time uncertainty/score interpretation. Honest current Beta limitations; no daily fortune or compatibility promise.
+- Shared responsive CSS, per-page title/description/canonical/OG/summary card, sitemap now exactly three public URLs, homepage crawlable links and links back to existing PLAY. No calculation/tier/battle/payment/SQL changes.
+- Executed check: 257 tests/type/API PASS. Cloudflare build PASS. Static validation confirms H1/canonical/link targets and sitemap; localhost HTTP confirms two pages/CSS/home return 200 and development noindex. Browser opened free-saju successfully; mobile follow-up was interrupted by lost browser session and is NOT PASS. No production deployment/main merge.
+- www/apex redirect, previous Vercel duplication, social image, trust pages and Search Console/Naver inspection remain outstanding from audit.
