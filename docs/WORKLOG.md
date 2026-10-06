@@ -376,3 +376,10 @@
 - Shared responsive CSS, per-page title/description/canonical/OG/summary card, sitemap now exactly three public URLs, homepage crawlable links and links back to existing PLAY. No calculation/tier/battle/payment/SQL changes.
 - Executed check: 257 tests/type/API PASS. Cloudflare build PASS. Static validation confirms H1/canonical/link targets and sitemap; localhost HTTP confirms two pages/CSS/home return 200 and development noindex. Browser opened free-saju successfully; mobile follow-up was interrupted by lost browser session and is NOT PASS. No production deployment/main merge.
 - www/apex redirect, previous Vercel duplication, social image, trust pages and Search Console/Naver inspection remain outstanding from audit.
+
+### Result sharing card (2026-10-06)
+- User authorized implementation/testing and safe Cloudflare production release. Separate feature/result-share-card branch based on current 1d08737 production; main unchanged.
+- Lazy result-only 1080x1350 Canvas PNG modal, existing tier/top-percent/stat-grade source reused; deterministic tagline, save/native file-or-link share/copy/manual fallback; no private input or purchase data in image/link.
+- Existing share_click action metadata distinguishes five card actions; landing_view via=result_card distinguishes incoming fixed anonymous UTM. No new DB event names, migrations, packages or settings.
+- Check 260 tests PASS; Cloudflare build PASS; UI E2E 45/45, battle 34/34, mock payment browser 10/10, AdSense 1/1. Payment test now waits for complete app initialization before clicks; production payment code unchanged. Native sharing is mocked in headless tests, not actual SNS app proof.
+- Production smoke script and details: docs/RESULT_SHARE_CARD.md. Deployment/public checks follow after final diff review. Existing ISP DNS mismatch remains separate; no DNS/WAF changes.

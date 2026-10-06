@@ -73,7 +73,7 @@ try {
   await wait(() => calls.some((c) => c.path.endsWith("refund-unopened")));
   check("cancel never requests report", !calls.some((c) => c.path.endsWith("report")));
   await cdp("Page.navigate", { url: base });
-  await wait(() => evalPage("!!document.querySelector('#go')"));
+  await wait(() => evalPage("document.readyState === 'complete' && !!window.__PALJA_DEV__ && !!document.querySelector('#go')"));
   await evalPage(`document.querySelector('#go').click(); document.querySelector('#dt').value='1990-05-15'; document.querySelector('#tm').value='14:20'; document.querySelector('#sex [data-v=female]').click(); document.querySelector('#calc').click();`);
   await wait(() => evalPage("document.querySelector('#s-result').classList.contains('on')"));
   const openSheet = () => evalPage("document.querySelector('.prod[data-product=premium_money] .btn').click()");

@@ -267,6 +267,63 @@ await check("티어: PLAY 기준 종합 티어·TOP 능력치 표시", async () 
   assert(!/대한민국 상위|한국인 상위|실제 인구 상위/.test(text), "인구통계 과장 금지");
 });
 
+await check("공유카드: 클릭 전 이미지 없음, 클릭 후 별도 PNG와 기존 티어 동일", async () => {
+  assert(await evaluate("!document.getElementById('result-card-dialog')"), "클릭 전 생성 금지");
+  await click('#result-share-open');
+  await waitFor(() => evaluate("!!document.getElementById('result-card-image') && !document.getElementById('result-card-save').disabled"));
+  const data = await evaluate(`(() => { const im = document.getElementById('result-card-image'); return { width:im.naturalWidth, height:im.naturalHeight, alt:im.alt, tier:document.querySelector('#palja-tier .d').textContent, rank:document.querySelector('#palja-tier').innerText, events:window.__PALJA_DEV__.events.filter(e=>e.props.mode==='result_card').map(e=>e.props.action) }; })()`);
+  assert(data.width===1080 && data.height===1350, 'PNG 1080x1350'); assert(data.alt.includes(data.tier), '기존 티어');
+  assert(data.rank.includes(data.alt.match(/PLAY 기준 상위 [^\.]+/)[0]), '기존 상위 비율');
+  assert(!/1990|05-15|male|생년월일|전화번호/.test(data.alt), '카드 개인정보 없음');
+  assert(data.events.includes('result_share_open') && data.events.includes('result_card_created'), '생성 이벤트');
+});
+await shot('26-result-share-card-mobile');
+const cardDataUrl = await evaluate(`fetch(document.getElementById('result-card-image').src).then(r=>r.blob()).then(b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b);} ))`);
+writeFileSync('e2e-artifacts/result-share-card.png', Buffer.from(cardDataUrl.split(',')[1], 'base64'));
+await check('공유카드: 실제 PNG 다운로드', async () => {
+  const downloadDir = `e2e-artifacts/card-download-${process.pid}`;
+  await cdp('Browser.setDownloadBehavior', { behavior:'allow', downloadPath:fileURLToPath(new URL(`../${downloadDir}/`, import.meta.url)) });
+  await click('#result-card-save');
+  await waitFor(()=>existsSync(`${downloadDir}/paljaplay-result.png`));
+  const bytes=readFileSync(`${downloadDir}/paljaplay-result.png`);
+  assert(bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])), 'PNG signature');
+});
+await check('공유카드: 링크 복사와 고정 익명 URL', async () => {
+  await evaluate(`Object.defineProperty(navigator,'clipboard',{value:{writeText:async t=>{window.__cardCopy=t}},configurable:true});true`);
+  await click('#result-card-copy'); await sleep(150);
+  assert(await evaluate("window.__cardCopy === 'https://www.paljaplay.com/?utm_source=share&utm_medium=result_card'"), '개인/결제/배틀 쿼리 없음');
+});
+await check('공유카드: Web Share 이미지 지원 모의 검사', async () => {
+  await evaluate(`window.__cardOriginalShare=navigator.share; window.__cardOriginalCanShare=navigator.canShare; Object.defineProperty(navigator,'canShare',{value:()=>true,configurable:true});Object.defineProperty(navigator,'share',{value:async data=>{window.__cardShare={name:data.files[0].name,type:data.files[0].type,size:data.files[0].size,text:data.text}},configurable:true});true`);
+  await click('#result-card-share'); await sleep(150);
+  const data=await evaluate('window.__cardShare');assert(data.type==='image/png' && data.size>1000 && data.text.includes('utm_medium=result_card'), '파일 공유 전달값');
+});
+await check('공유카드: 파일 공유 미지원이면 링크만 전달하는 모의 검사', async () => {
+  await evaluate(`Object.defineProperty(navigator,'canShare',{value:()=>false,configurable:true});Object.defineProperty(navigator,'share',{value:async data=>{window.__cardShare=data},configurable:true});true`);
+  await click('#result-card-share'); await sleep(150);
+  assert(await evaluate("window.__cardShare.url.includes('utm_medium=result_card') && !window.__cardShare.files"), '링크 fallback');
+});
+await check('공유카드: 공유 취소는 성공 이벤트로 기록하지 않음', async () => {
+  const before=await evaluate("window.__PALJA_DEV__.events.filter(e=>e.props.action==='result_share_native').length");
+  await evaluate(`Object.defineProperty(navigator,'share',{value:async()=>{throw new DOMException('cancel','AbortError')},configurable:true});true`);
+  await click('#result-card-share'); await sleep(150);
+  assert(await evaluate("document.getElementById('result-card-status').textContent.includes('취소')"),'취소 안내');
+  assert(before===await evaluate("window.__PALJA_DEV__.events.filter(e=>e.props.action==='result_share_native').length"),'성공 이벤트 없음');
+});
+await check('공유카드: Web Share 미지원·클립보드 거부 직접 복사 fallback', async () => {
+  await evaluate(`Object.defineProperty(navigator,'share',{value:undefined,configurable:true});Object.defineProperty(navigator,'clipboard',{value:{writeText:async()=>{throw Error('denied')}},configurable:true});window.__cardExec=document.execCommand;document.execCommand=()=>false;true`);
+  await click('#result-card-share'); await sleep(150);
+  assert(await evaluate("document.getElementById('result-card-status').textContent.includes('지원하지')"),'미지원 안내');
+  await click('#result-card-copy'); await sleep(150);
+  assert(await evaluate("!document.getElementById('result-card-link').hidden"),'직접 복사 입력');
+  await evaluate(`document.execCommand=window.__cardExec;Object.defineProperty(navigator,'share',{value:window.__cardOriginalShare,configurable:true});Object.defineProperty(navigator,'canShare',{value:window.__cardOriginalCanShare,configurable:true});true`);
+});
+await click('#result-card-close');
+await check('공유카드: 닫으면 기존 결과·티어 유지하고 포커스 복귀',async()=>{
+  await waitFor(() => evaluate("!document.getElementById('result-card-dialog') && document.activeElement.id==='result-share-open'"));
+  assert(await evaluate("!document.getElementById('result-card-dialog') && document.activeElement.id==='result-share-open' && document.getElementById('s-result').classList.contains('on')"),'기존 결과 복귀');
+});
+
 await check("7개 능력치: 게임 스탯 막대 + '기본 운 밸런스' 명칭 + 운세 아님 안내", async () => {
   const stats = await evaluate("[...document.querySelectorAll('#stats .stat')].map(s => [s.querySelector('.nm').textContent, s.querySelector('.v').textContent, s.querySelectorAll('.blocks i.f').length])");
   assert(stats.length === 7, `stat ${stats.length}`);
@@ -585,6 +642,10 @@ await check("네트워크: 생년월일·출생시간·성별·전화번호·기
   assert(hits.length === 0, hits.slice(0, 3).join(" | "));
 });
 
+await check('공유카드 링크 신규 방문은 개인정보 없이 result_card 유입으로 측정', async () => {
+  await open('/?utm_source=share&utm_medium=result_card');
+  assert(await evaluate("window.__PALJA_DEV__.events.find(e=>e.name==='landing_view').props.via==='result_card'"), '공유 유입 분리');
+});
 // ── 마무리 ──────────────────────────────────────────────────
 ws.close();
 killTree(browser);

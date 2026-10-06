@@ -3,6 +3,8 @@
 
 import { computeBetaResult, type BetaResult } from "../../src/lib/engine";
 import { tiersForScores, type TierResult } from "../../src/lib/tier";
+import { resultCardModel, isResultCardVisit } from "../../src/lib/share/resultCard";
+import { openResultCard } from "./resultCard";
 import { validateSajuInput } from "../../src/lib/validation";
 import { toResultView, RESULT_ERROR_TEXT, type ResultView, type PremiumCardView } from "../../src/lib/ui/resultView";
 import { deriveSignals } from "../../src/lib/interpretation";
@@ -71,7 +73,7 @@ if (__PALJA_ENV__ === "development") {
 // 배틀 링크(?b=… 새 형식 / #b=… 예전 형식)로 들어왔는가. 잘못된 링크면 배틀 없이 평소처럼 진행한다.
 const battleLink = battleFromLocation(location.search, location.hash);
 const challenger: BattleCard | null = battleLink.kind === "valid" ? battleLink.card : null;
-rt.track("landing_view", { via: battleLink.kind === "valid" ? (battleLink.legacy ? "battle-legacy" : "battle") : battleLink.kind === "invalid" ? "battle-invalid" : "direct" });
+rt.track("landing_view", { via: battleLink.kind === "valid" ? (battleLink.legacy ? "battle-legacy" : "battle") : battleLink.kind === "invalid" ? "battle-invalid" : isResultCardVisit(location.search) ? "result_card" : "direct" });
 if (challenger) renderBattleInvite(challenger);
 else if (battleLink.kind === "invalid") window.setTimeout(() => toast("배틀 링크가 올바르지 않아요. 내 팔자부터 확인해 보세요!"), 300);
 // 이미 열린 탭에서 예전 형식(#b=) 링크로 이동하면 페이지가 다시 시작되지 않는다 → 새로 시작.
@@ -232,6 +234,7 @@ function renderResult(c: Current): void {
       h("p", {}, `TOP 능력치 · ${v.stats.find((s) => s.key === tiers.topStat.stat)!.label} ${tiers.topStat.tier}`),
       h("p", { class: "mute small" }, tiers.topStat.label),
       h("p", { class: "mute small" }, "PLAY 계산 엔진의 고정 표본과 비교한 재미용 지표예요. 실제 인구통계가 아니며, 같은 점수는 같은 등급이에요.")),
+    h("button", { class: "btn ghost", id: "result-share-open", type: "button", onclick: () => openResultCard(resultCardModel(tiers), (action, method) => rt.track("share_click", { mode: "result_card", action, method: method ?? "none" }, c.resultId)) }, "내 팔자 카드 공유하기"),
     h("p", { class: "hint" }, "나와 얼마나 비슷한지 내려가면서 확인해보세요 👇"),
     v.notices.map((n) => h("div", { class: "notice" }, n)),
 
