@@ -28,7 +28,7 @@
 | 공개 SEO 콘텐츠 | `web/today-content.html` |
 | 빌드·sitemap | `scripts/build.mjs`의 `/today` 생성 및 sitemap 경로 추가 hunk |
 | 화면/정적 검사 | `scripts/e2e.mjs`의 오늘운세·V2 확인, `scripts/check-today.mjs`, `scripts/inspect-daily-copy.ts` |
-| 단위 검사 | daily-copy, daily-language, daily-personalization, daily, profile, today-integration 테스트 및 `tests/tools/daily-copy-samples.ts` |
+| 단위 검사 | daily-copy, daily-language, daily-personalization, daily, profile, today-integration, today-multisample 테스트 및 `tests/tools/daily-copy-samples.ts` |
 | 문서 | 기존 DAILY_FORTUNE / DAILY_LANGUAGE_REVIEW / DAILY_PERSONALIZATION / DAILY_STYLE_REVIEW 문서와 본 보고서 |
 
 제외: 과거 무료 V2 파일 변경, 무료 결과 화면에 오늘운세 요약을 끼워 넣는 `renderDaily(c)` hunk, dirty feature 작업공간의 30종 캐릭터·새 공유카드·이미지, 과거 무료 V2 비교 문서/캡처, 다른 WORKLOG 변경. 기존 FREE_SAJU_V2 결과 렌더링 함수부터 파일 끝까지 기준본과 일치한다.
@@ -92,7 +92,7 @@
 
 | 검사 | 이번 후보 결과 |
 |---|---|
-| npm run check | 타입·API 검사, 275/275 단위 테스트 PASS |
+| npm run check | 타입·API 검사, 276/276 단위 테스트 PASS |
 | Cloudflare build | PASS, 로컬 payments off / Supabase 미설정 |
 | 정적 /today SEO 검사 | PASS |
 | 화면 E2E | 최종 51/51 PASS (기존 공유·Premium 화면 포함) |
@@ -120,5 +120,87 @@
 탭을 계속 켠 채 자정을 넘기면 타이머로 즉시 교체하지는 않는다. 다시 보이는 탭, 오늘 날짜 확인 버튼, 재계산에서 갱신되는 기존 동작을 유지했다. Preview에서는 이 동작과 기기 저장 UI의 범위를 사람도 확인할 것을 권장한다.
 
 로컬 최소 후보에는 운영 기능 회귀나 unrelated runtime 혼입이 발견되지 않았다. Preview 검증 단계로 진행할 준비가 됐다. 운영 배포 승인이 아니며 rollback 기준점은 `64fecd7a2acdd48b1f52460214d1c28f70307c4a`다.
+
+## 후속 1단계 지침에 따른 재감사 (2026-10-07, KST 21시대)
+
+새 지침의 상태를 그대로 가정하지 않고 repository, remote, dirty 작업공간 및 Cloudflare 대시보드를 다시 읽었다. 이미 생성한 `integration/prod-today` 후보 `6e66113f6215fcc886e3582f8e535c11667e971a`를 재사용했다. 이 후속 감사에서는 서비스 runtime 변경 없이 다중 표본 테스트와 검증 자료만 보완했다. 최종 후속 commit SHA는 사용자 보고와 `git rev-parse HEAD`에서 확인한다.
+
+### 실제 재확인한 상태
+
+| 항목 | 결과 |
+|---|---|
+| repository / remote | `jeongboheon213-star/palja-play`, `https://github.com/jeongboheon213-star/palja-play.git` |
+| 후보 시작 상태 | integration/prod-today / 6e66113 / git status clean |
+| 원격 Production HEAD | 64fecd7a2acdd48b1f52460214d1c28f70307c4a, 예상과 동일 |
+| 후보의 Production 공통 조상 | merge-base가 64fecd7 전체 SHA와 동일 |
+| 실제 Cloudflare 배포 | 1cbe0258-73c8-4735-838a-c69984b89c78 / chatgpt/payment-tier-phase2 / 64fecd7 / success |
+| Cloudflare Production 설정 | 운영 분기 chatgpt/payment-tier-phase2, 자동 배포 사용, npm run build:cloudflare, dist 출력 |
+| 기존 feature HEAD | feature/daily-fortune / 28e8ce6f304531d564ff3561cab2e93b86b8c7fe |
+| 기존 feature 상태 | 기존 dirty 상태 그대로. 파일 hash 62개 차이 0, branch/HEAD/status 동일 |
+| 실제 WWW | 앱 파일 HTTP 200 및 기존 SHA256 일치 |
+| 서비스 runtime | 후속 감사 시작 후보 6e66113 대비 변경 0건 |
+
+대표 무료 사주의 추가 요청 값도 실제 계산 출력에서 확인했다: 일간 경금, 목/화/토/금/수=0/2/2/3/1, 총점453, 표시65점. PRODUCTS는 재물/연애/직업·사업 심층 리포트 각 2,900원이며 파일을 변경하지 않았다. 대시보드의 Production 결제 모드는 TEST이고 설정을 변경하거나 결제를 실행하지 않았다.
+
+### 다중 명식 / 일간 검사
+
+6개 출생 연도(1963/1978/1985/1990/2000/2014) × 12개월 × 시간 5종(00:01/06:20/14:20/23:59/미상) × 성별 2종 = 720개 명식. 날짜 2026-10-06/10-07/11-01 각각 계산해 2,160건을 검증했다. 시간 미상 명식은 144개, 그 오늘운세 결과는 432건이다.
+
+10개 일간 모두 실제 표본에서 나왔다. 모든 표본의 5개 분야·점수 범위·평균 총점·TIER·총운/문구·퀘스트·십성/연락 근거 ID·확정 기둥만 사용하는 contact·반복 결과·원국/free/Premium 무변경을 검사했다. 오류/결정성 차이/근거 오류는 각각 0건이다.
+
+아래는 각 일간에서 뽑은 실제 사례이며 날짜는 모두 2026-10-06, 남성, 출생시간00:01이다. 이 사례만 검사한 것은 아니며 전체에는 위 시간/성별/연도 조합이 포함된다.
+
+| 일간 | 생년월일 | 총점/TIER | 재물/애정/직장·사업/인간관계/컨디션 |
+|---|---|---|---|
+| 갑 | 1985-01-15 | 74/B | 74/72/72/72/82 |
+| 을 | 1985-02-15 | 71/B | 72/72/72/68/72 |
+| 병 | 1978-03-15 | 75/B | 72/74/88/72/70 |
+| 정 | 1963-03-15 | 65/C | 64/64/78/58/62 |
+| 무 | 1963-01-15 | 74/B | 76/70/78/72/72 |
+| 기 | 1963-02-15 | 73/B | 78/72/72/76/66 |
+| 경 | 1963-08-15 | 68/C | 68/66/76/62/70 |
+| 신 | 1963-09-15 | 74/B | 72/74/78/68/80 |
+| 임 | 1963-11-15 | 68/C | 56/70/74/74/64 |
+| 계 | 1985-03-15 | 68/C | 62/66/72/72/68 |
+
+실제 사례별 재물 문구는 동반 파일 `TODAY_MULTISAMPLE_RESULT.json`에 저장했다. 예를 들어 무 일간 사례는 '새 물건보다 평소 쓰던 돈의 흐름이 눈에 들어오는 날이에요. 자주 쓰지 않는 정기 결제가 있다면 정리해보세요.'이고, 임 일간 사례는 '함께하는 소비에서는 내 몫이 어느 정도인지 신경 쓰일 수 있어요. 분위기에 맞추기 전에 부담 없는 금액부터 이야기해보세요.'다. 명식 관계가 같으면 같은 문장이 나올 수 있다는 기존 설계는 유지한다.
+
+### 현재 Preview 설정의 실제 읽기 전용 조사
+
+대시보드 `/settings/preview`에서 변수 이름과 필요한 상태만 확인했다. 저장·삭제·편집하지 않았고 암호화 비밀값을 열지 않았다.
+
+| 현재 Preview 항목 | 확인 결과 |
+|---|---|
+| 변수 목록 전체 | PALJA_ADSENSE_PUBLISHER_ID, PALJA_PUBLIC_URL, PALJA_SUPABASE_URL의 3개 |
+| 분석 공개 키 | PALJA_SUPABASE_ANON_KEY 및 SUPABASE_ANON_KEY / NEXT_PUBLIC_SUPABASE_ANON_KEY 없음 |
+| 결제 모드/클라이언트 키 | PALJA_PAYMENTS_MODE / PALJA_TOSS_CLIENT_KEY 없음 |
+| 서버 비밀값 | SUPABASE_SECRET_KEY / TOSS_SECRET_KEY 없음 |
+| DB URL | URL은 남아 있지만 공개/서버 키가 없어 현재 목록만으로 분석 쓰기·서버 결제를 연결할 수 없음 |
+| 공개 URL | https://www.paljaplay.com 유지. 기존 공유/SEO의 canonical 설정이며 Preview 배포를 뜻하지 않음 |
+| Preview 분기 | Production이 아닌 모든 분기. 따라서 원격 push도 이번 단계에서는 하지 않음 |
+| build/output | npm run build:cloudflare / dist |
+
+현재 Preview 설정에는 추가로 제거할 연결 키가 발견되지 않았다. 다음 단계에서 이 상태를 유지하고 실제 Preview 빌드 로그의 Supabase 미설정 / payments off 및 생성 번들의 연결 차단을 다시 검사해야 한다. Production 환경 변수, Toss, DB, 광고 설정은 그대로 두어야 한다. 이번 단계에는 Preview 배포가 없으므로 실제 Preview 번들의 안전성을 검증 완료했다고 주장하지 않는다.
+
+### 재실행 여부를 구분한 테스트 기록
+
+| 검사 | 새 후속 지침 접수 후 재실행 | 결과 |
+|---|---|---|
+| npm run check | 예 | 276/276 및 타입/API 검사 PASS |
+| 720명식/2,160오늘운세 | 예, 새 테스트 추가 | 10일간 전체, 오류·결정성·근거 차이0 |
+| Cloudflare build | 예 | PASS, 로컬 외부 연결 없음 |
+| 정적 today/SEO/robots/sitemap | 예 | PASS |
+| Node Mock 결제 | 예 | 9/9 PASS |
+| 14,551 운영 보호 비교 | 예 | 차이0, 동일 오류2를 성공으로 집계하지 않음 |
+| 화면 E2E | 이 후속 감사에서는 재실행하지 않음 | 직전 후보 생성 단계 51/51 PASS. 이후 서비스 runtime 차이0 |
+| Battle E2E | 이 후속 감사에서는 재실행하지 않음 | 직전 후보 생성 단계 34/34 PASS. 이후 Battle/runtime 차이0 |
+
+과거 E2E를 이번 후속 감사에서 다시 실행한 것으로 표현하지 않는다. 이번에는 runtime 변경이 없고 추가된 것은 테스트/보고서뿐이므로 동일 화면 테스트를 반복하지 않았다. 실환경 화면 검사는 다음 승인된 Preview 단계에서 수행한다.
+
+후속 감사 자료: 상위 작업 루트의 `reports/deployment/today-stage1-check.log`, `today-stage1-cloudflare-build.log`, `today-stage1-protected.log`, `today-multisample.json`, `today-preservation.json`. 최종 diff에는 기존 24개 후보 파일과 새 `tests/today-multisample.test.ts`, `reports/deployment/TODAY_MULTISAMPLE_RESULT.json`만 포함된다. 두 추가 파일은 tests/docs 범위다. 마케팅·신규 OG 이미지·광고·궁합·30종 캐릭터·신규 공유카드·상품/결제·DB/관리자/Worker 변경은 없다.
+
+### 다음 담당자에게 남기는 상태
+
+현재 후보를 그대로 재사용하고, 시작 시 git status·HEAD·Production remote를 다시 확인한다. Production이 달라졌다면 덮어쓰지 말고 중단한다. 최초 후보와 후속 감사는 로컬 commit뿐이다. 사용자 승인 전에는 원격 push/Preview/Production 배포를 하지 않는다. 최종 보고 후 대기한다.
 
 TODAY 실제 Production 기준 통합 판정: GO

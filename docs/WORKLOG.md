@@ -401,3 +401,8 @@
 - Created integration/prod-today from actual Production 64fecd7. Ported committed daily runtime/navigation/SEO only; excluded daily insertion into existing free result and all dirty 30-character/share-card assets.
 - Check 275, screen 51, battle 34, Node mock payment 9 passed; Cloudflare build/static SEO passed. 14,551 inputs: protected data mismatch 0, repeated-result mismatch 0; 62 original files preserved. See reports/deployment/TODAY_PRODUCTION_BASELINE_INTEGRATION.md.
 - Local candidate only. No push, merge, Preview/Production deployment, settings/DB changes or real payment.
+
+### Today stage 1 follow-up verification (2026-10-07)
+- Reverified remote Production 64fecd7 and actual Cloudflare deployment 1cbe0258 read-only; existing original 62-file hashes/status remain unchanged. Reused local integration/prod-today candidate; no runtime changes after 6e66113.
+- Added ten-day-master coverage: 720 charts, 144 unknown-time charts, three target dates / 2,160 readings; errors/determinism/evidence mismatch 0. Fresh check 276/276, Cloudflare/static SEO and Node mock payments 9/9 passed; repeated protected 14,551-input comparison mismatch 0. Prior unchanged-runtime screen 51/Battle 34 results explicitly distinguished from fresh runs.
+- Current Preview dashboard has only publisher ID, public URL and Supabase URL; no analytics public key or payment/server keys. Settings unchanged. No push, Preview/Production deployment, merge or real payment. Updated handoff report and local audit commit only.
