@@ -56,9 +56,10 @@ export interface ResultView {
   readonly elementSummary: readonly string[];
   readonly elementNote: string | null;
   readonly pillars: readonly PillarView[];
-  readonly sections: readonly { readonly domain: string; readonly title: string; readonly paragraphs: readonly string[] }[];
+  readonly sections: readonly { readonly domain: string; readonly title: string; readonly summary: string; readonly paragraphs: readonly string[]; readonly productLabel: string | null }[];
   readonly reversals: readonly { readonly title: string; readonly text: string }[];
   readonly keywords: readonly string[];
+  readonly evidence: readonly { readonly domain: string; readonly title: string; readonly facts: readonly string[] }[];
   readonly premium: readonly PremiumCardView[];
   readonly disclaimer: string;
   readonly share: ShareCardData;
@@ -116,9 +117,13 @@ export function toResultView(free: FreeReading, premium: readonly PremiumPreview
     elementSummary: free.fiveElements.summary.map((t) => t.text),
     elementNote: excluded.length > 0 ? `확정된 ${free.fiveElements.total}글자만으로 센 결과예요.` : null,
     pillars: free.pillars.map(pillarView),
-    sections: free.sections.map((s) => ({ domain: s.domain, title: s.title, paragraphs: s.items.map((i) => i.text) })),
+    sections: free.sections.map((s) => {
+      const product = premium.find(p => p.product.domains.includes(s.domain))?.product;
+      return { domain: s.domain, title: s.title, summary: s.summary?.text ?? "", paragraphs: s.items.map((i) => i.text), productLabel: ["wealth", "love", "career"].includes(s.domain) && product ? `${product.name} · ${product.priceLabel}` : null };
+    }),
     reversals: free.reversals.map((r) => ({ title: REVERSAL_TITLE[r.domain] ?? "반전 포인트", text: r.text })),
-    keywords: free.keywords.map((k) => k.text),
+    keywords: free.displayKeywords.map((k) => k.text),
+    evidence: free.evidence,
     premium: premium.map((p) => ({
       productId: p.product.id,
       emoji: p.product.emoji,

@@ -5,13 +5,14 @@ import { STEM_HANJA } from "../saju/ganji";
 import type { SajuData } from "../saju/chart";
 import type { CalculationConfidence, Element, PillarPosition, Stem } from "../saju/types";
 import { CHARACTERS } from "./copy/characters";
-import { SECTION_TITLES, SIGNAL_COPY, type SignalCopy } from "./copy/signalCopy";
 import { NOTICE_TEXT, type NoticeCode } from "./notices";
 import { scoreSignals } from "./score";
 import { deriveSignals, type SignalSet } from "./signals";
+import { SIGNAL_COPY, type SignalCopy } from "./copy/signalCopy";
 import type { Domain, Score, Signal } from "./types";
 import { INTERPRETATION_VERSION } from "./version";
 import { SCORE_VERSION } from "./score";
+import { buildFreeNarrative, type FreeEvidence } from "./freeNarrative";
 
 export interface ReadingItem {
   readonly text: string;
@@ -19,6 +20,7 @@ export interface ReadingItem {
 }
 
 export interface ReadingSection {
+  readonly summary?: ReadingItem;
   readonly domain: "wealth" | "love" | "career" | "business" | "relationship";
   readonly title: string;
   readonly score: number;
@@ -74,10 +76,13 @@ export interface FreeReading {
   readonly scores: readonly Score[];
   readonly sections: readonly ReadingSection[];
   readonly keywords: readonly ReadingItem[];
+  /** 공유용 keywords는 유지하고 화면의 명식 기반 키워드는 따로 전달한다. */
+  readonly displayKeywords: readonly ReadingItem[];
   /** 0개일 수 있다 (근거 없는 반전 문장 금지) */
   readonly reversals: readonly (ReadingItem & { readonly domain: Domain })[];
   readonly notices: readonly { readonly code: NoticeCode; readonly text: string; readonly positions?: readonly PillarPosition[] }[];
   readonly boundaryRisk: boolean;
+  readonly evidence: readonly FreeEvidence[];
 }
 
 export type FreeReadingResult =
@@ -87,9 +92,6 @@ export type FreeReadingResult =
 export const FREE_LIMITS = Object.freeze({ traits: [5, 7], strengths: [5, 7], cautions: [3, 5], keywords: [3, 5] } as const);
 
 const POSITION_LABEL: Readonly<Record<PillarPosition, string>> = { year: "연주", month: "월주", day: "일주", hour: "시주" };
-const SECTION_DOMAINS = ["wealth", "love", "career", "business", "relationship"] as const;
-const REVERSAL_DOMAINS: readonly Domain[] = ["wealth", "love", "career", "business", "relationship", "execution", "flow"];
-
 const copyOf = (s: Signal): SignalCopy => SIGNAL_COPY[s.id] ?? {};
 /** 강도 높은 순, 같으면 원래 순서 */
 const byStrength = (list: readonly Signal[]) => [...list].map((s, i) => ({ s, i })).sort((a, b) => b.s.strength - a.s.strength || a.i - b.i).map((x) => x.s);
@@ -115,67 +117,15 @@ export function buildFreeReading(d: SajuData): FreeReadingResult {
   const scoreSet = scoreSignals(set);
   const dm = d.dayMaster;
   const ch = CHARACTERS[dm.stem];
-  const dmId = `personality.daymaster.${dm.stem}`;
-  const dmIds = [dmId];
+  const dmIds = [`personality.daymaster.${dm.stem}`];
+  const narrative = buildFreeNarrative(d, set, scoreSet.scores);
   const ordered = byStrength(signals);
-  const personality = ordered.filter((s) => s.domain === "personality" && s.id !== dmId);
-
-  // 핵심 성향: 캐릭터 3 + 성향 Signal → 부족하면 캐릭터 예비 후보
-  const traits = new Collector(FREE_LIMITS.traits[1]);
-  for (const t of ch.traits) traits.add(t, dmIds);
-  for (const s of personality) traits.add(copyOf(s).trait, [s.id]);
-  for (const t of ch.moreTraits) if (traits.size < FREE_LIMITS.traits[0]) traits.add(t, dmIds);
-
-  // 강점: 캐릭터 3 + positive Signal 강점 → 부족하면 예비 후보
-  const strengths = new Collector(FREE_LIMITS.strengths[1]);
-  for (const t of ch.strengths) strengths.add(t, dmIds);
-  for (const s of ordered) if (s.polarity !== "negative") strengths.add(copyOf(s).strength, [s.id]);
-  for (const t of ch.moreStrengths) if (strengths.size < FREE_LIMITS.strengths[0]) strengths.add(t, dmIds);
-
-  // 주의점: negative Signal 우선 → 캐릭터 → 예비
-  const cautions = new Collector(FREE_LIMITS.cautions[1]);
-  for (const s of ordered) if (s.polarity === "negative") cautions.add(copyOf(s).caution, [s.id]);
-  for (const t of ch.cautions) cautions.add(t, dmIds);
-  for (const t of ch.moreCautions) if (cautions.size < FREE_LIMITS.cautions[0]) cautions.add(t, dmIds);
-
-  // 오행 밸런스
-  const elementSummary = new Collector(4);
-  for (const s of signals.filter((x) => x.id.startsWith("personality.element."))) elementSummary.add(copyOf(s).element, [s.id]);
-  const flowSig = signals.find((s) => s.domain === "flow" && ["flow.balanced", "flow.one_missing", "flow.skewed", "flow.partial_data"].includes(s.id));
-  if (flowSig) {
-    const text =
-      flowSig.id === "flow.balanced"
-        ? "다섯 가지 기운이 모두 들어 있어 균형이 좋은 편이에요."
-        : flowSig.id === "flow.partial_data"
-          ? "확정된 기둥이 적어 오행 분포는 확정된 글자만으로 보여 드려요."
-          : flowSig.id === "flow.skewed"
-            ? "기운이 몇 가지로 쏠려 있어 개성이 뚜렷한 구조예요."
-            : "한 가지 기운이 비어 있어 그 기운을 채워 주는 사람·환경과 잘 맞아요.";
-    elementSummary.add(text, [flowSig.id]);
-  }
-
-  // 영역 해석
-  const sections: ReadingSection[] = SECTION_DOMAINS.map((domain) => {
-    const c = new Collector(4);
-    c.add(ch.lines[domain], dmIds);
-    for (const s of byStrength(signals.filter((x) => x.domain === domain))) c.add(copyOf(s).section, [s.id]);
-    const score = scoreSet.scores.find((x) => x.stat === domain)!.value;
-    return Object.freeze({ domain, title: SECTION_TITLES[domain], score, items: Object.freeze(c.items) });
-  });
-
   // 인생 키워드
   const keywords = new Collector(FREE_LIMITS.keywords[1]);
   for (const k of ch.keywords) keywords.add(k, dmIds);
   for (const s of ordered) keywords.add(copyOf(s).keyword, [s.id]);
 
-  // 반전 포인트: 같은 영역의 positive(revPos) + negative(revNeg) 가 실제로 있을 때만
-  const reversals: (ReadingItem & { domain: Domain })[] = [];
-  for (const domain of REVERSAL_DOMAINS) {
-    const inDomain = byStrength(signals.filter((s) => s.domain === domain));
-    const pos = inDomain.find((s) => s.polarity === "positive" && copyOf(s).revPos);
-    const neg = inDomain.find((s) => s.polarity === "negative" && copyOf(s).revNeg);
-    if (pos && neg) reversals.push(Object.freeze({ domain, text: `${copyOf(pos).revPos} ${copyOf(neg).revNeg}`, signalIds: Object.freeze([pos.id, neg.id]) }));
-  }
+
 
   // 안내
   const notices: FreeReading["notices"][number][] = [];
@@ -204,23 +154,25 @@ export function buildFreeReading(d: SajuData): FreeReadingResult {
     versions: resultVersions(d),
     character: { id: ch.id, name: ch.name, emoji: ch.emoji, tagline: ch.tagline, dayMaster: dm.stem, dayMasterHanja: STEM_HANJA[dm.stem], element: dm.element, signalIds: dmIds },
     pillars,
-    coreTraits: traits.items,
-    strengths: strengths.items,
-    cautions: cautions.items,
+    coreTraits: narrative.coreTraits,
+    strengths: narrative.strengths,
+    cautions: narrative.cautions,
     fiveElements: {
       counts: d.fiveElements.counts,
       total: d.fiveElements.total,
       dominant: signals.filter((s) => s.id.startsWith("personality.element.dominant.")).map((s) => s.id.split(".").pop() as Element),
       missing: signals.filter((s) => s.id.startsWith("personality.element.missing.")).map((s) => s.id.split(".").pop() as Element),
       excludedPositions: d.fiveElements.excludedPositions,
-      summary: elementSummary.items,
+      summary: narrative.elementSummary,
     },
     scores: scoreSet.scores,
-    sections,
+    sections: narrative.sections,
     keywords: keywords.items,
-    reversals,
+    displayKeywords: narrative.keywords,
+    reversals: narrative.reversals,
     notices,
     boundaryRisk: d.boundaryRisk,
+    evidence: narrative.evidence,
   };
   return { ok: true, reading: deepFreeze(reading), signals: set };
 }
