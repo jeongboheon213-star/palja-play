@@ -270,6 +270,8 @@ function renderResult(c: Current): void {
     ),
     v.elementSummary.map((t) => h("p", { style: "margin-top:10px" }, t)),
     v.elementNote ? h("p", { class: "mute small" }, v.elementNote) : null,
+    h("details", {}, h("summary", {}, "왜 이렇게 나왔나요? · 성향과 오행"),
+      v.evidence.filter((e) => e.domain === "personality").map((e) => h("div", { class: "small mute" }, e.facts.map((f) => h("p", {}, f))))),
     h(
       "details",
       {},
@@ -277,7 +279,19 @@ function renderResult(c: Current): void {
       h("div", { class: "pil" }, v.pillars.map((p) => h("div", {}, h("b", {}, p.main), h("i", {}, p.sub), h("span", {}, p.label)))),
     ),
 
-    v.sections.map((s) => [h("h2", {}, s.title), h("div", { class: "blk" }, s.paragraphs.map((p) => h("p", {}, p)))]),
+    v.sections.map((s) => [
+      h("h2", {}, s.title),
+      h("div", { class: "blk" },
+        h("p", {}, h("strong", {}, s.summary)),
+        s.paragraphs.map((p) => h("p", {}, p)),
+        s.productLabel ? h("p", { class: "small mute" }, s.productLabel) : null,
+        h("details", {},
+          h("summary", {}, "왜 이렇게 나왔나요?"),
+          v.evidence.filter((e) => e.domain === s.domain).map((e) =>
+            h("div", { class: "small mute" }, e.facts.map((f) => h("p", {}, f)))),
+        ),
+      ),
+    ]),
 
     v.reversals.length
       ? [
