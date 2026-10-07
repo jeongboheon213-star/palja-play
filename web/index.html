@@ -95,6 +95,12 @@ textarea{min-height:90px;resize:vertical;font-size:15px}
 .list li::before{position:absolute;left:0;top:8px}
 .list.good li::before{content:"💪"}.list.warn li::before{content:"⚠️"}.list.trait li::before{content:"✦";color:var(--gold);left:6px}
 .box{border:1px solid var(--line);border-radius:18px;padding:16px;background:var(--bg2);margin-top:12px}
+.today-detail{padding:16px}.today-hero{text-align:center;padding:1px 0 9px}.today-hero h2{margin:0 0 6px}
+.today-score{font-size:76px;line-height:1.05;color:var(--gold);margin:12px 0 4px}.today-score span{font-size:24px;margin-left:4px}
+.today-tier{font-size:28px;color:var(--jade);margin:0 0 12px}.today-headline{font-size:23px;margin:0 0 12px}
+.today-key{font-weight:700;color:var(--gold);margin:8px 0}.today-detail .box{padding:14px;margin-top:12px}.today-detail .box h3{margin:0 0 8px}.today-detail .box p:last-child{margin-bottom:0}
+.today-mid{padding:18px 0 6px;text-align:center}.today-mid .btn{margin-top:6px;padding:12px;font-size:15px}
+.today-quest{border-color:var(--gold)}.today-return{margin-top:20px;text-align:center}.today-return h3{font-size:19px}
 
 /* 능력치 (게임 스탯) */
 .stat{display:grid;grid-template-columns:92px 1fr 34px;align-items:center;gap:10px;margin:10px 0}
@@ -228,6 +234,7 @@ input[type=text]:focus-visible,input[type=tel]:focus-visible{outline:3px solid v
     <span class="chip">💼 직업</span><span class="chip">🚀 사업</span><span class="chip">🤝 인간관계</span>
   </div>
   <button class="btn" id="go" type="button">내 팔자 보기</button>
+  <a class="btn ghost" href="/today" style="text-align:center;text-decoration:none">☀️ 무료 오늘운세</a>
   <p class="mute" style="margin-top:12px">이름·전화번호·이메일은 묻지 않아요. 가입도 필요 없어요.</p>
   <div class="preview-card" aria-hidden="true">
     <div class="em">🎴</div>
@@ -262,9 +269,12 @@ input[type=text]:focus-visible,input[type=tel]:focus-visible{outline:3px solid v
     <p class="mute small" style="margin-top:8px">지금은 양력 · 1962년 1월 1일 이후 · 대한민국 출생만 지원해요.</p>
     <div class="err" id="err" role="alert" aria-live="polite"></div>
     <div class="choice" id="overlap" hidden></div>
+    <label class="check"><input id="remember-profile" type="checkbox"> 다음에도 쓰도록 이 기기에 정보 저장</label>
+    <p class="mute small">선택한 경우에만 생년월일·시간·성별을 이 브라우저에 저장해요. 공용 기기에서는 선택하지 마세요.</p>
+    <button id="forget-profile" class="btn ghost" type="button" hidden>이 기기의 저장 정보 삭제</button>
     <button class="btn" id="calc" type="submit">내 팔자 펼치기</button>
   </form>
-  <p class="mute" style="margin-top:10px">입력한 생년월일과 시간은 결과 계산에만 쓰고 어디에도 저장하지 않아요.</p>
+  <p class="mute" style="margin-top:10px">입력 정보는 기기에서 계산하며 서버에 새로 저장하지 않아요. 기기 저장은 위 선택을 따른답니다.</p>
 </section>
 
 <section class="scr" id="s-loading" aria-live="polite">

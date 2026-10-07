@@ -5,6 +5,9 @@ import { computeBetaResult, type BetaResult } from "../../src/lib/engine";
 import { tiersForScores, type TierResult } from "../../src/lib/tier";
 import { resultCardModel, isResultCardVisit } from "../../src/lib/share/resultCard";
 import { openResultCard } from "./resultCard";
+import { dailyReading } from "../../src/lib/daily/reading";
+import { dailyCopy } from './dailyCopy';
+import { readProfile, writeProfile } from './profile';
 import { validateSajuInput } from "../../src/lib/validation";
 import { toResultView, RESULT_ERROR_TEXT, type ResultView, type PremiumCardView } from "../../src/lib/ui/resultView";
 import { deriveSignals } from "../../src/lib/interpretation";
@@ -36,10 +39,10 @@ function h(tag: string, attrs: Record<string, string | boolean | ((e: Event) => 
 }
 
 // ── 화면 전환 ──────────────────────────────────────────────
-const SCREENS = ["s-landing", "s-input", "s-loading", "s-result", "s-report"] as const;
+const SCREENS = ["s-landing", "s-input", "s-loading", "s-result", "s-report", "s-today"] as const;
 type Screen = (typeof SCREENS)[number];
 function show(id: Screen): void {
-  for (const s of SCREENS) document.getElementById(s)!.classList.toggle("on", s === id);
+  for (const s of SCREENS) document.getElementById(s)?.classList.toggle("on", s === id);
   window.scrollTo(0, 0);
 }
 
@@ -61,6 +64,12 @@ interface Current {
 let current: Current | null = null;
 let gender: "male" | "female" | null = null;
 let inputStarted = false;
+let todayMode = /^\/today\/?$/.test(location.pathname);
+if(todayMode) {
+  $('#s-result').after(h('section',{class:'scr',id:'s-today','aria-label':'오늘운세 결과'}));
+  $('#calc').textContent='무료 오늘운세 펼치기';
+  rt.track('landing_view',{mode:'today',action:'today_page_view'});
+}
 
 // ── 랜딩 ──────────────────────────────────────────────────
 // 개발 빌드에서만 "개발 환경" 표시 (production 빌드에는 이 코드도, 표시 요소도 없다)
@@ -99,16 +108,34 @@ function renderBattleInvite(c: BattleCard): void {
   $("#go").textContent = "내 팔자로 도전하기";
 }
 $("#go").addEventListener("click", () => {
+  if(todayMode && current) { renderToday(current);show('s-today');return; }
+  if(todayMode && remember.checked && dt.value && gender) { run();return; }
   show("s-input");
   ($("#dt") as HTMLInputElement).focus({ preventScroll: true });
 });
-$("#home").addEventListener("click", () => show("s-landing"));
+$("#home").addEventListener("click", () => {todayMode=/^\/today\/?$/.test(location.pathname);show("s-landing");});
 
 // ── 입력 ──────────────────────────────────────────────────
 const dt = $<HTMLInputElement>("#dt");
 const tm = $<HTMLInputElement>("#tm");
 const unk = $<HTMLInputElement>("#unk");
 dt.max = todayKst();
+const remember=$<HTMLInputElement>('#remember-profile');
+function restoreProfile():void {
+  let p=null;try{p=readProfile(localStorage,todayKst());}catch{}
+  if(!p)return;
+  dt.value=p.birthDate;tm.value=p.birthTime??'';unk.checked=p.birthTime===null;tm.disabled=unk.checked;gender=p.gender;
+  for(const b of Array.from(document.querySelectorAll<HTMLButtonElement>('#sex button'))) {
+    b.classList.toggle('on',b.dataset.v===gender);b.setAttribute('aria-checked',String(b.dataset.v===gender));
+  }
+  remember.checked=true;$('#forget-profile').hidden=false;
+}
+restoreProfile();
+$('#forget-profile').addEventListener('click',()=>{
+  let ok=false;try{ok=writeProfile(localStorage,null);}catch{}
+  if(ok){remember.checked=false;$('#forget-profile').hidden=true;toast('이 기기의 저장 정보를 삭제했어요.');}
+  else toast('저장 공간에 접근할 수 없어요. 브라우저 설정을 확인해 주세요.');
+});
 
 function markInputStart(): void {
   if (inputStarted) return;
@@ -166,12 +193,20 @@ function run(overlapChoice?: OverlapChoice): void {
   }
   const resultId = randomId();
   current = { resultId, result: r, view: toResultView(r.free, r.premium) };
+  let saved=false;try{saved=writeProfile(localStorage,remember.checked?v.value:null);}catch{}
+  $('#forget-profile').hidden=!remember.checked||!saved;
+  if(remember.checked&&!saved)toast('기기 저장은 실패했지만 운세는 확인할 수 있어요.');
   rt.track(
     "calculation_complete",
     { timeKnown: v.value.birthTime !== null, boundaryNotice: r.free.boundaryRisk, ...r.free.versions },
     resultId,
   );
   playLoading(() => {
+    if(todayMode) {
+      renderToday(current!);show('s-today');
+      rt.track('result_view',{mode:'today',action:'today_fortune_generated',version:'daily-0.2.0',timeKnown:r.saju.time.timeKnown},resultId);
+      return;
+    }
     renderResult(current!);
     show("s-result");
     const battleOutcome = challenger ? compareBattle(battleCardFrom(r.free, null), challenger).outcome : null;
@@ -211,6 +246,86 @@ function playLoading(done: () => void): void {
 function list(cls: string, items: readonly string[]): HTMLElement {
   return h("ul", { class: `list ${cls}` }, items.map((t) => h("li", {}, t)));
 }
+
+function renderDaily(c: Current, expanded = false): HTMLElement {
+  const section = h('section', { class: 'box', id: 'daily-fortune', 'aria-label': '오늘의 PLAY 운세' });
+  section.dataset.expanded=String(expanded);
+  const update = () => {
+    const r = dailyReading(c.result.saju, todayKst());
+    section.replaceChildren(h('h2', {}, '🌅 오늘의 PLAY 운세'));
+    if (!r) { section.append(h('p', {}, '일간을 확정할 수 없어 오늘의 운세를 만들지 않았어요.')); return; }
+    section.dataset.date = r.date;
+    if(expanded) {
+      const copy=dailyCopy(r,c.result.saju.dayMaster!.stem);
+      section.classList.add('today-detail');
+      section.replaceChildren(
+        h('header',{class:'today-hero'},h('h2',{},'☀️ 오늘의 운세'),
+          h('p',{class:'mute small'},`${r.date.replaceAll('-','.')} · 한국 시간 · ${r.ganji}일`),
+          h('p',{class:'d today-score'},String(r.score),h('span',{},'점')),
+          h('p',{class:'d today-tier'},`${r.tier} TIER`),
+          h('h3',{class:'today-headline'},copy.headline),
+          h('p',{class:'mute small'},'오늘 TIER는 기존 팔자 TIER와 별개인 재미용 점수예요.')),
+        h('section',{class:'box'},h('h3',{},'오늘의 총운'),h('p',{},copy.overview)),
+        ...copy.areas.flatMap((a,i)=>[
+          h('section',{class:'box','data-area':a.key},h('h3',{},a.label),
+            h('div',{class:'stat'},h('span',{class:'nm'},'오늘 점수'),h('div',{class:'blocks','aria-label':`${a.score}점`},Array.from({length:10},(_,n)=>h('i',{class:n<Math.round(a.score/10)?'f':''}))),h('span',{class:'v'},String(a.score))),
+            h('p',{class:'today-key'},a.headline),h('p',{},a.text)),
+          i===1?h('aside',{class:'today-mid'},h('p',{class:'mute small'},'하루의 흐름 말고, 내 타고난 강점도 궁금하다면'),
+            h('button',{class:'btn ghost',type:'button',id:'today-mid-saju',onclick:()=>goToSaju(c)},'내 사주팔자도 보기 →')):null,
+        ].filter((x):x is HTMLElement=>x!==null)),
+        h('section',{class:'box today-quest'},h('h3',{},'🎯 오늘의 퀘스트'),h('p',{class:'today-key'},copy.quest)),
+        h('details',{},h('summary',{},'오늘의 해석은 어떻게 만들었나요?'),h('p',{class:'small'},r.basis),
+          h('p',{class:'small'},`내 일간: ${copy.evidence.dayMaster} · 오늘 일진: ${r.ganji} · 천간 관계: ${r.stemRelation} · 지지 정기 관계: ${r.branchRelation}`),
+          h('p',{class:'small'},`원국과의 관계: 합 ${copy.evidence.combines}개 · 충 ${copy.evidence.clashes}개${copy.evidence.labels.length?' ('+copy.evidence.labels.join(', ')+')':''} · 보정 ${r.adjustment}`),
+          h('p',{class:'small'},copy.areas.map(a=>a.label+' '+a.score+'점').join(' / ')),
+          h('p',{class:'small'},r.areas.map(a=>`${a.label}: 천간 ${a.weights[0]}, 지지 ${a.weights[1]}`).join(' / ')),h('p',{class:'mute small'},r.notice)),
+        h('button',{type:'button',class:'btn ghost',onclick:update},'오늘 날짜로 확인하기'));
+      return;
+    }
+    section.append(
+      h('p', { class: 'mute small' }, `${r.date} · 한국 시간 · ${r.ganji}일`),
+      h('p', {class:'d',style:'font-size:36px;color:var(--gold);margin:0'}, `${r.tier} TIER · ${r.score}점`),
+      h('p', {class:'mute small'}, '오늘의 PLAY 지표 · 기존 팔자 TIER와 별개예요'),
+      h('h3', { style: 'color:var(--gold,#f5d485);font-size:24px' }, r.theme),
+      h('p', {}, r.line),
+      h('p', { class: 'mute small' }, `함께 살펴볼 테마 · ${r.background}`),
+      h('p', {}, r.backgroundLine),
+      ...(expanded?r.areas:[]).map(a=>h('section',{class:'box','data-area':a.key},h('h3',{},a.label),
+        h('div',{class:'stat'},h('span',{class:'nm'},'PLAY 지표'),h('div',{class:'blocks','aria-label':`${a.score}점`},
+          Array.from({length:10},(_,i)=>h('i',{class:i<Math.round(a.score/10)?'f':''}))),h('span',{class:'v'},String(a.score))),h('p',{},a.text))),
+      h('h3', {}, '🎯 오늘의 작은 미션'), h('p', {}, r.mission),
+      h('details', {}, h('summary', {}, '오늘의 해석은 어떻게 만들었나요?'),
+        h('p', { class: 'small' }, r.basis),
+        h('p', { class: 'small' }, `오늘 천간: ${r.stemRelation} · 지지 정기: ${r.branchRelation}`),
+        h('p',{class:'small'},`원국과 오늘: ${r.contacts.map(x=>`${({year:'연주',month:'월주',day:'일주',hour:'시주'} as const)[x.position]} ${x.kind}`).join(' · ')||'확인된 합·충 없음'} / 보정 ${r.adjustment}`),
+        h('p',{class:'small'},r.areas.map(a=>`${a.label}: 천간 ${a.weights[0]}, 지지 ${a.weights[1]}`).join(' / ')),
+        h('p', { class: 'mute small' }, r.notice)),
+      h('button', { type: 'button', class: 'btn ghost', onclick: update }, '오늘 날짜로 확인하기'),
+      h('p', { class: 'hint' }, '매일의 일진에 따라 해석이 달라져요. 같은 명식·날짜는 같은 해석이에요.'),
+    );
+  };
+  update();
+  return section;
+}
+
+function goToSaju(c:Current):void {
+  todayMode=false;rt.track('result_view',{mode:'today',action:'today_to_saju_click'},c.resultId);renderResult(c);show('s-result');
+}
+function renderToday(c:Current):void {
+  $('#s-today').replaceChildren(renderDaily(c,true),
+    h('section',{class:'box',id:'today-to-saju'},h('h2',{style:'margin-top:0'},'오늘 흐름은 봤는데, 내 타고난 팔자는?'),
+      h('p',{},'오늘운세는 하루를 돌아보는 무료 모드예요. 내 캐릭터와 재물·연애·사업 성향은 기존 사주풀이에서 이어서 확인하세요.'),
+      h('button',{type:'button',class:'btn jade',onclick:()=>goToSaju(c)},'🔮 내 사주팔자 확인하기')),
+    h('button',{type:'button',class:'btn ghost',onclick:()=>show('s-input')},'입력 정보 바꾸기'),
+    h('section',{class:'box today-return'},h('h3',{},'🌙 한국 시간 밤 12시, 오늘 일진이 바뀝니다.'),
+      h('p',{},'내일 내 점수는 몇 점일까요? 다시 들러 확인해 보세요.'),
+      h('p',{class:'mute small'},'점수나 TIER가 같은 날도 있어요. 기기 저장을 선택했다면 재입력 없이 무료로 볼 수 있어요.')));
+}
+
+document.addEventListener('visibilitychange', () => {
+  const section = document.getElementById('daily-fortune');
+  if (!document.hidden && current && section && section.dataset.date !== todayKst()) section.replaceWith(renderDaily(current,section.dataset.expanded==='true'));
+});
 
 function renderResult(c: Current): void {
   const v = c.view;

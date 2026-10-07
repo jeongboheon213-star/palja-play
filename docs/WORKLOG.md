@@ -396,3 +396,8 @@
 ### Kakao result image correction (2026-10-06)
 - User authorized correcting link-only message to personal card image. Added click-only PNG upload plus feed template and explicit second send click to preserve activation; upload failure/retry, no silent link-only send.
 - No engine/tier/battle/payment/LIVE/SEO/environment changes. Check 260 tests and Cloudflare build passed; final browser/private data and real production image checks follow.
+
+### Today Production-baseline local integration (2026-10-07)
+- Created integration/prod-today from actual Production 64fecd7. Ported committed daily runtime/navigation/SEO only; excluded daily insertion into existing free result and all dirty 30-character/share-card assets.
+- Check 275, screen 51, battle 34, Node mock payment 9 passed; Cloudflare build/static SEO passed. 14,551 inputs: protected data mismatch 0, repeated-result mismatch 0; 62 original files preserved. See reports/deployment/TODAY_PRODUCTION_BASELINE_INTEGRATION.md.
+- Local candidate only. No push, merge, Preview/Production deployment, settings/DB changes or real payment.

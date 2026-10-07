@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 const ROOT = "dist-dev";
-const SHOTS = "docs/screenshots";
+const SHOTS = process.env.PALJA_E2E_SHOTS ?? "docs/screenshots";
 const PROFILE = `e2e-artifacts/profile-${process.pid}`; // 실행마다 새 프로필
 /** 브라우저 프로세스 트리 전체 종료 (Windows 는 자식 프로세스가 남아 다음 실행을 막는다) */
 function killTree(proc) {
@@ -38,10 +38,11 @@ if (!BROWSER) throw new Error("Edge/Chrome 실행 파일을 찾지 못했습니�
 if (!existsSync(`${ROOT}/index.html`)) throw new Error("dist-dev 가 없습니다. npm run build:dev 먼저 실행.");
 
 // ── 정적 서버 ───────────────────────────────────────────────
-const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".png": "image/png" };
+const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".png": "image/png", '.xml':'application/xml', '.txt':'text/plain' };
 const server = createServer((req, res) => {
   const url = new URL(req.url, "http://x");
-  const p = join(ROOT, url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname));
+  let p = join(ROOT, url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname));
+  if(existsSync(join(p,'index.html')))p=join(p,'index.html');
   if (!p.startsWith(ROOT) || !existsSync(p)) {
     res.writeHead(404).end("not found");
     return;
@@ -672,6 +673,59 @@ await check('공유카드 링크 신규 방문은 개인정보 없이 result_car
   assert(await evaluate("window.__PALJA_DEV__.events.find(e=>e.name==='landing_view').props.via==='result_card'"), '공유 유입 분리');
 });
 // ── 마무리 ──────────────────────────────────────────────────
+await viewport('mobile');
+await check('/today: 공개 콘텐츠·입력·무료 결과·사주 전환과 저장 재사용',async()=>{
+  await open('/today');
+  assert((await visibleText()).includes('오늘운세는 어떻게 계산하나요?'),'입력 전 콘텐츠');
+  assert(await evaluate("document.querySelector('link[rel=canonical]').href==='https://www.paljaplay.com/today'"),'canonical');
+  await noOverflow();await shot('today-landing');
+  await click('#go');await fill({date:'1990-05-15',time:'14:20'});
+  await click('#remember-profile');await click('#calc');
+  await waitFor(()=>evaluate("document.getElementById('s-today').classList.contains('on')"));
+  const first=await evaluate("document.querySelector('#daily-fortune').innerText");
+  assert(await evaluate("document.querySelectorAll('[data-area]').length===5"),'다섯 분야');
+  for(const width of [360,390,430,1280]) {
+    await cdp('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<500});await noOverflow();
+  }
+  await viewport('mobile');await shot('today-result-personalized','#daily-fortune');
+  assert(await evaluate("document.querySelector('.today-score').getBoundingClientRect().top < document.querySelector('.today-tier').getBoundingClientRect().top && document.querySelector('#daily-fortune').innerText.includes('오늘의 총운') && document.querySelector('#daily-fortune').innerText.includes('오늘의 퀘스트')"),'점수 우선·총운·퀘스트');
+  const layout=await cdp('Page.getLayoutMetrics');
+  const full=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width:390,height:Math.ceil(layout.cssContentSize.height),scale:1}});
+  writeFileSync(`${SHOTS}/today-result-personalized-full.png`,Buffer.from(full.data,'base64'));
+  await click('#today-mid-saju');
+  assert(await evaluate("document.getElementById('s-result').classList.contains('on')"),'중간 CTA 재입력 없이 이동');
+  await click('#home');await click('#go');
+  await click('#today-to-saju button');
+  assert(await evaluate("document.getElementById('s-result').classList.contains('on') && !!document.querySelector('.prod') && !!document.querySelector('#battle') && !!document.querySelector('#result-share-open')"),'기존 결과·리포트·공유·배틀');
+  await open('/today');await click('#go');
+  await waitFor(()=>evaluate("document.getElementById('s-today').classList.contains('on')"));
+  assert(first===await evaluate("document.querySelector('#daily-fortune').innerText"),'새로고침 동일 결과·저장 입력 재사용');
+  assert(await evaluate("window.__PALJA_DEV__.events.some(e=>e.props.action==='today_fortune_generated')"),'운세 이벤트');
+  await click('#s-today > button');await click('#forget-profile');
+  assert(await evaluate("localStorage.getItem('palja-input-profile-v1')===null"),'선택한 프로필만 삭제');
+  await open('/today');await click('#go');
+  assert(await evaluate("document.getElementById('s-input').classList.contains('on') && !document.getElementById('remember-profile').checked"),'삭제 후 재입력');
+});
+await check('무료 사주: 개인화 해석·접힌 계산 근거·모바일 전체 화면', async () => {
+  await open('/'); await viewport('mobile'); await click('#go');
+  await fill({date:'1990-05-15',time:'14:20',gender:'male'}); await click('#calc');
+  await waitFor(()=>evaluate("document.getElementById('s-result').classList.contains('on')"));
+  assert((await visibleText()).includes('배움으로 맡은 일을 뒷받침'),'복합 해석');
+  assert(await evaluate("Array.from(document.querySelectorAll('#s-result .blk > p > strong')).filter(x=>x.textContent.length>0&&x.textContent.length<=40).length>=5"),'분야별 한 줄 요약');
+  const evidenceSelector="#s-result details";
+  assert(await evaluate(`Array.from(document.querySelectorAll('${evidenceSelector}')).filter(d=>d.querySelector('summary').innerText.includes('왜 이렇게')).length===6`),'성향 및 5개 분야 근거');
+  assert(await evaluate(`Array.from(document.querySelectorAll('${evidenceSelector}')).filter(d=>d.querySelector('summary').innerText.includes('왜 이렇게')).every(d=>!d.open)`),'기본 닫힘');
+  for(const width of [360,390,430,1280]) {
+    await cdp('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<500});await noOverflow();
+  }
+  await viewport('mobile'); await evaluate("window.scrollTo(0,0)");
+  const layout=await cdp('Page.getLayoutMetrics');
+  const capture=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width:390,height:Math.ceil(layout.cssContentSize.height),scale:1}});
+  writeFileSync(`${SHOTS}/free-result-personalized-full.png`,Buffer.from(capture.data,'base64'));
+  await evaluate(`Array.from(document.querySelectorAll('${evidenceSelector}')).find(d=>d.querySelector('summary').innerText.includes('왜 이렇게')).open=true`);
+  assert((await visibleText()).includes('관성 2개: 연주 지지 정기 정관, 월주 지지 정기 편관'),'실제 개수와 자리');
+  await noOverflow(); await shot('free-evidence-mobile',`${evidenceSelector}`);
+});
 ws.close();
 killTree(browser);
 rmSync(PROFILE, { recursive: true, force: true, maxRetries: 5 });

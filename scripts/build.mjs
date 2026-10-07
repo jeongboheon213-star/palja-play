@@ -7,7 +7,7 @@
 //
 // 공유 문구의 공개 URL 은 빌드 시 PALJA_PUBLIC_URL 환경 변수로 넣는다 (없으면 링크 없이 공유).
 import * as esbuild from "esbuild";
-import { writeAdsenseFiles } from "./adsense-files.mjs";
+import { writeAdsenseFiles, adsenseFiles } from "./adsense-files.mjs";
 import { seoHtml, writeSeoFiles } from "./seo-files.mjs";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -92,7 +92,12 @@ for (const [path, source] of [['/free-saju', 'web/free-saju.html'], ['/guide/saj
   mkdirSync(`${outdir}${path}`, { recursive: true });
   writeFileSync(`${outdir}${path}/index.html`, seoHtml(html, { dev, path, title, description }));
 }
-writeSeoFiles(outdir, { dev, paths: ['/', '/free-saju', '/guide/saju'] });
+mkdirSync(`${outdir}/today`, { recursive: true });
+const todayHtml=readFileSync('web/index.html','utf8')
+  .replace(/<section class="scr on" id="s-landing"[\s\S]*?<\/section>/,readFileSync('web/today-content.html','utf8'))
+  .replace('src="./assets/app.js"','src="/assets/app.js"');
+writeFileSync(`${outdir}/today/index.html`, adsenseFiles(seoHtml(todayHtml, {dev,path:'/today',title:'무료 오늘의 운세 | 생년월일로 보는 오늘 사주 - 팔자PLAY',description:'내 사주와 오늘 일진을 비교해 재물·애정·직장·인간관계와 컨디션을 무료로 돌아보세요. 게임처럼 즐기는 오늘의 운세와 작은 미션, 팔자PLAY.'}),dev||noRemote?null:process.env.PALJA_ADSENSE_PUBLISHER_ID).html);
+writeSeoFiles(outdir, { dev, paths: ['/', '/free-saju', '/guide/saju', '/today'] });
 if (dev) cpSync("web/debug.html", `${outdir}/debug.html`);
 
 const options = {
