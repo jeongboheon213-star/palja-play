@@ -684,8 +684,16 @@ await check('/today: 공개 콘텐츠·입력·무료 결과·사주 전환과 �
   await waitFor(()=>evaluate("document.getElementById('s-today').classList.contains('on')"));
   const first=await evaluate("document.querySelector('#daily-fortune').innerText");
   assert(await evaluate("document.querySelectorAll('[data-area]').length===5"),'다섯 분야');
+  // V2: 실제 계산 근거(오늘 십성·합충)와 분야별 근거·행동·계산식
+  assert(await evaluate("(()=>{const s=document.getElementById('today-signals');if(!s)return false;const t=s.innerText;return t.includes('오늘 내 사주에 들어온 흐름')&&t.includes('오늘 천간')&&t.includes('비교한 내 기둥')&&s.querySelectorAll('.sig-chip').length>=2})()"),'오늘 사주 신호 영역');
+  assert(await evaluate("document.querySelectorAll('[data-area] .today-why').length===5&&document.querySelectorAll('[data-area] .today-play').length===5&&document.querySelectorAll('[data-area] .today-calc').length===5"),'분야별 근거·PLAY·계산식');
+  assert(await evaluate("Array.from(document.querySelectorAll('[data-area]')).every(b=>{const m=b.querySelector('.today-calc').innerText.match(/= (\\d+)/);return m&&b.querySelector('.stat .v').innerText===m[1]})"),'계산식 결과 = 표시 점수');
+  assert(await evaluate("document.getElementById('today-signals').compareDocumentPosition(document.querySelector('[data-area]'))&Node.DOCUMENT_POSITION_FOLLOWING"),'신호 영역이 분야 카드보다 먼저');
   for(const width of [360,390,430,1280]) {
     await cdp('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<500});await noOverflow();
+    const lay=await cdp('Page.getLayoutMetrics');
+    const img=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width,height:Math.ceil(lay.cssContentSize.height),scale:1}});
+    writeFileSync(`${SHOTS}/today-v2-${width}.png`,Buffer.from(img.data,'base64'));
   }
   await viewport('mobile');await shot('today-result-personalized','#daily-fortune');
   assert(await evaluate("document.querySelector('.today-score').getBoundingClientRect().top < document.querySelector('.today-tier').getBoundingClientRect().top && document.querySelector('#daily-fortune').innerText.includes('오늘의 총운') && document.querySelector('#daily-fortune').innerText.includes('오늘의 퀘스트')"),'점수 우선·총운·퀘스트');

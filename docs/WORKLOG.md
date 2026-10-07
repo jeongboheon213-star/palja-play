@@ -406,3 +406,11 @@
 - Reverified remote Production 64fecd7 and actual Cloudflare deployment 1cbe0258 read-only; existing original 62-file hashes/status remain unchanged. Reused local integration/prod-today candidate; no runtime changes after 6e66113.
 - Added ten-day-master coverage: 720 charts, 144 unknown-time charts, three target dates / 2,160 readings; errors/determinism/evidence mismatch 0. Fresh check 276/276, Cloudflare/static SEO and Node mock payments 9/9 passed; repeated protected 14,551-input comparison mismatch 0. Prior unchanged-runtime screen 51/Battle 34 results explicitly distinguished from fresh runs.
 - Current Preview dashboard has only publisher ID, public URL and Supabase URL; no analytics public key or payment/server keys. Settings unchanged. No push, Preview/Production deployment, merge or real payment. Updated handoff report and local audit commit only.
+
+## 2026-10-08 — /today V2: 실제 사주 근거 표시 (Preview 후보, Claude Code)
+- 기준 재확인: 원격 `chatgpt/payment-tier-phase2` = 0bfc80e8e049e85434df49c01e8cd8ad7d3d738c. 새 브랜치 `claude/today-v2` (별도 worktree). 기존 미커밋 작업 reset/clean 없음. Production 배포·main 병합 없음.
+- 감사·설계: `docs/TODAY_V2.md`. 점수식 코드=문서 일치. 형·파·해·반합은 계산되지만 오늘운세에서 필터됨(노출 안 함). 성별 미사용.
+- 구현: `src/lib/daily/explain.ts`(설명 계층, 점수·기존 문장 불변) + `/today` 상세에 "오늘 내 사주에 들어온 흐름"(십성·합충 칩/설명, 비교·제외 기둥), 분야별 근거 한 줄·오늘의 PLAY(십성×분야 50종)·점수 계산식. CSS 추가만. 새 패키지 없음.
+- 테스트: 신규 `tests/daily-explain.test.ts` 11개(결정성, 계산식=점수, 같은 점수 다른 십성→다른 설명, 합·충 반영/미발생 시 미표시, 시간 미상 시주 제외, 성별 무관, 가중치-표현 일치 50칸, 미계산 용어·단정 금지, 묶음 표시, 기존 dailyCopy 불변). 전체 287/287, E2E 51/51(360/390/430/1280 가로 넘침 없음, 계산식 결과=표시 점수), Battle 34/34, 모의 결제 10/10, Cloudflare 빌드·정적 SEO(robots/sitemap/canonical) PASS.
+- 대표 명식 비교: `docs/TODAY_V2_SAMPLES.md`. 화면: `docs/screenshots/today-v2-{360,390,430,1280}.png`.
+- 미확인: 실기기(iPhone Safari 등), 실제 Preview 화면(배포 후 확인), 명리 전문가 문구 검토.

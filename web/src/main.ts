@@ -7,6 +7,7 @@ import { resultCardModel, isResultCardVisit } from "../../src/lib/share/resultCa
 import { openResultCard } from "./resultCard";
 import { dailyReading } from "../../src/lib/daily/reading";
 import { dailyCopy } from './dailyCopy';
+import { dailyExplain, formatSigned } from '../../src/lib/daily/explain';
 import { readProfile, writeProfile } from './profile';
 import { validateSajuInput } from "../../src/lib/validation";
 import { toResultView, RESULT_ERROR_TEXT, type ResultView, type PremiumCardView } from "../../src/lib/ui/resultView";
@@ -257,6 +258,7 @@ function renderDaily(c: Current, expanded = false): HTMLElement {
     section.dataset.date = r.date;
     if(expanded) {
       const copy=dailyCopy(r,c.result.saju.dayMaster!.stem);
+      const ex=dailyExplain(r,c.result.saju);
       section.classList.add('today-detail');
       section.replaceChildren(
         h('header',{class:'today-hero'},h('h2',{},'☀️ 오늘의 운세'),
@@ -265,11 +267,15 @@ function renderDaily(c: Current, expanded = false): HTMLElement {
           h('p',{class:'d today-tier'},`${r.tier} TIER`),
           h('h3',{class:'today-headline'},copy.headline),
           h('p',{class:'mute small'},'오늘 TIER는 기존 팔자 TIER와 별개인 재미용 점수예요.')),
+        ...(ex?[renderSignals(ex,c.result.saju.dayMaster!.stem,r.ganji)]:[]),
         h('section',{class:'box'},h('h3',{},'오늘의 총운'),h('p',{},copy.overview)),
         ...copy.areas.flatMap((a,i)=>[
           h('section',{class:'box','data-area':a.key},h('h3',{},a.label),
             h('div',{class:'stat'},h('span',{class:'nm'},'오늘 점수'),h('div',{class:'blocks','aria-label':`${a.score}점`},Array.from({length:10},(_,n)=>h('i',{class:n<Math.round(a.score/10)?'f':''}))),h('span',{class:'v'},String(a.score))),
-            h('p',{class:'today-key'},a.headline),h('p',{},a.text)),
+            h('p',{class:'today-key'},a.headline),
+            ...(ex?[areaWhy(ex.areas[i]!)]:[]),
+            h('p',{},a.text),
+            ...(ex?areaPlay(ex.areas[i]!):[])),
           i===1?h('aside',{class:'today-mid'},h('p',{class:'mute small'},'하루의 흐름 말고, 내 타고난 강점도 궁금하다면'),
             h('button',{class:'btn ghost',type:'button',id:'today-mid-saju',onclick:()=>goToSaju(c)},'내 사주팔자도 보기 →')):null,
         ].filter((x):x is HTMLElement=>x!==null)),
@@ -306,6 +312,28 @@ function renderDaily(c: Current, expanded = false): HTMLElement {
   };
   update();
   return section;
+}
+
+// ── 오늘운세 V2: 실제 계산 근거(십성·합충) 보여주기 ──
+const POS_KO={year:'연주',month:'월주',day:'일주',hour:'시주'} as const;
+function sigChip(sig:{kind:string;type?:string},label:string):HTMLElement{
+  return h('span',{class:'sig-chip '+(sig.kind==='contact'?(sig.type==='clash'?'clash':'combine'):sig.kind==='noContact'?'none':'god')},label);
+}
+function renderSignals(ex:NonNullable<ReturnType<typeof dailyExplain>>,dayMaster:string,ganji:string):HTMLElement{
+  return h('section',{class:'box today-signals',id:'today-signals'},
+    h('h3',{},'🧭 오늘 내 사주에 들어온 흐름'),
+    h('p',{class:'mute small'},`내 일간 ‘${dayMaster}’ × 오늘 일진 ‘${ganji}’ 비교 결과`),
+    h('div',{class:'sig-chips'},ex.signals.map(sg=>sigChip(sg,sg.chip))),
+    ...ex.details.map(sg=>h('div',{class:'sig-item'},h('p',{class:'sig-title'},sigChip({kind:sg.kind,type:sg.type??undefined},sg.chip),' ',sg.title),h('p',{},sg.plain))),
+    h('p',{class:'mute small'},'비교한 내 기둥: '+ex.compared.map(p=>POS_KO[p]).join(' · ')+(ex.excluded.length?' / '+ex.excluded.map(e=>POS_KO[e.position]+'는 '+e.reason).join(' / '):'')),
+    h('p',{class:'mute small'},[...new Set(ex.signals.filter(sg=>sg.kind!=='noContact').map(sg=>sg.chip.split(' ')[0]))].join('·')+' 같은 이름은 내 일간과 오늘 글자의 관계를 부르는 말이에요. 좋고 나쁨을 정하는 말이 아니에요.'));
+}
+function areaWhy(a:NonNullable<ReturnType<typeof dailyExplain>>['areas'][number]):HTMLElement{
+  return h('p',{class:'today-why'},...a.chips.map(c=>sigChip({kind:c.startsWith('충')||c.startsWith('합')?'contact':'tenGod',type:c.startsWith('충')?'clash':'combine'},c)),' ',a.why);
+}
+function areaPlay(a:NonNullable<ReturnType<typeof dailyExplain>>['areas'][number]):HTMLElement[]{
+  return [h('p',{class:'today-play'},h('b',{},'🎯 오늘의 PLAY '),a.action),
+    h('p',{class:'today-calc'},'점수 계산: '+a.breakdown.map(b=>b.label==='기본'?'기본 '+b.value:b.label+' '+formatSigned(b.value)).join(' · ')+' = '+a.score+(a.clamped?' (0~100 범위로 맞춤)':''))];
 }
 
 function goToSaju(c:Current):void {
