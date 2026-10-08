@@ -273,7 +273,7 @@ function renderDaily(c: Current, expanded = false): HTMLElement {
           h('section',{class:'box','data-area':a.key},h('h3',{},a.label),
             h('div',{class:'stat'},h('span',{class:'nm'},'오늘 점수'),h('div',{class:'blocks','aria-label':`${a.score}점`},Array.from({length:10},(_,n)=>h('i',{class:n<Math.round(a.score/10)?'f':''}))),h('span',{class:'v'},String(a.score))),
             h('p',{class:'today-key'},a.headline),
-            ...(ex?[areaWhy(ex.areas[i]!)]:[]),
+            ...(ex?[areaBasis(ex.areas[i]!)]:[]),
             h('p',{},a.text),
             ...(ex?areaPlay(ex.areas[i]!):[])),
           i===1?h('aside',{class:'today-mid'},h('p',{class:'mute small'},'하루의 흐름 말고, 내 타고난 강점도 궁금하다면'),
@@ -314,26 +314,43 @@ function renderDaily(c: Current, expanded = false): HTMLElement {
   return section;
 }
 
-// ── 오늘운세 V2: 실제 계산 근거(십성·합충) 보여주기 ──
+// ── 오늘운세 V2: 기본 화면은 쉽게, 펼치면 실제 계산 근거(십신·합충·점수표) ──
 const POS_KO={year:'연주',month:'월주',day:'일주',hour:'시주'} as const;
-function sigChip(sig:{kind:string;type?:string},label:string):HTMLElement{
-  return h('span',{class:'sig-chip '+(sig.kind==='contact'?(sig.type==='clash'?'clash':'combine'):sig.kind==='noContact'?'none':'god')},label);
+type Explain=NonNullable<ReturnType<typeof dailyExplain>>;
+/** 접기/펼치기: 실제 button + aria-expanded/aria-controls. 패널은 기본 접힘(hidden). 키보드(Enter/Space)는 button 기본 동작. */
+function disclosure(id:string,label:(open:boolean)=>string,panel:HTMLElement,cls:string):HTMLElement[]{
+  panel.id=id;panel.hidden=true;
+  const btn=h('button',{type:'button',class:'today-toggle '+cls,'aria-expanded':'false','aria-controls':id},label(false));
+  btn.addEventListener('click',()=>{const open=btn.getAttribute('aria-expanded')!=='true';btn.setAttribute('aria-expanded',String(open));panel.hidden=!open;btn.textContent=label(open);});
+  return [btn,panel];
 }
-function renderSignals(ex:NonNullable<ReturnType<typeof dailyExplain>>,dayMaster:string,ganji:string):HTMLElement{
+function renderSignals(ex:Explain,dayMaster:string,ganji:string):HTMLElement{
+  const names=[...new Set(ex.summary.chips.filter(c=>c.tone!=='none').map(c=>c.label.split(' ')[0]))].join('·');
+  const detail=h('div',{class:'today-detail-panel'},
+    h('p',{class:'mute small'},`내 일간 ${dayMaster} × 오늘 일진 ${ganji}`),
+    h('ul',{class:'rel-list'},ex.relationLines.map(t=>h('li',{},t))),
+    h('p',{class:'small'},'비교한 내 기둥: '+ex.compared.map(p=>POS_KO[p]).join(' · ')),
+    ...ex.excluded.map(e=>h('p',{class:'small'},e.reason)),
+    h('p',{class:'small'},ex.scoringNote),
+    h('p',{class:'mute small'},names+' 같은 이름은 내 일간과 오늘 글자의 관계를 부르는 말이에요. 좋고 나쁨을 정하는 말이 아니에요.'));
   return h('section',{class:'box today-signals',id:'today-signals'},
     h('h3',{},'🧭 오늘 내 사주에 들어온 흐름'),
-    h('p',{class:'mute small'},`내 일간 ‘${dayMaster}’ × 오늘 일진 ‘${ganji}’ 비교 결과`),
-    h('div',{class:'sig-chips'},ex.signals.map(sg=>sigChip(sg,sg.chip))),
-    ...ex.details.map(sg=>h('div',{class:'sig-item'},h('p',{class:'sig-title'},sigChip({kind:sg.kind,type:sg.type??undefined},sg.chip),' ',sg.title),h('p',{},sg.plain))),
-    h('p',{class:'mute small'},'비교한 내 기둥: '+ex.compared.map(p=>POS_KO[p]).join(' · ')+(ex.excluded.length?' / '+ex.excluded.map(e=>POS_KO[e.position]+'는 '+e.reason).join(' / '):'')),
-    h('p',{class:'mute small'},[...new Set(ex.signals.filter(sg=>sg.kind!=='noContact').map(sg=>sg.chip.split(' ')[0]))].join('·')+' 같은 이름은 내 일간과 오늘 글자의 관계를 부르는 말이에요. 좋고 나쁨을 정하는 말이 아니에요.'));
+    h('div',{class:'sig-chips'},ex.summary.chips.map(c=>h('span',{class:'sig-chip '+c.tone},c.label))),
+    ...ex.summary.tenGodLines.map(t=>h('p',{class:'sig-line'},t)),
+    ...ex.summary.contactLines.map(t=>h('p',{class:'sig-line small'},t)),
+    ...disclosure('today-rel-detail',o=>`내 사주와 오늘의 관계 ${o?'접기 ▲':'자세히 보기 ▼'}`,detail,'rel'));
 }
-function areaWhy(a:NonNullable<ReturnType<typeof dailyExplain>>['areas'][number]):HTMLElement{
-  return h('p',{class:'today-why'},...a.chips.map(c=>sigChip({kind:c.startsWith('충')||c.startsWith('합')?'contact':'tenGod',type:c.startsWith('충')?'clash':'combine'},c)),' ',a.why);
+function areaBasis(a:Explain['areas'][number]):HTMLElement{
+  return h('p',{class:'today-why'},a.basis);
 }
-function areaPlay(a:NonNullable<ReturnType<typeof dailyExplain>>['areas'][number]):HTMLElement[]{
+function areaPlay(a:Explain['areas'][number]):HTMLElement[]{
+  const table=h('div',{class:'calc-table'},
+    ...a.breakdown.map(b=>h('div',{class:'calc-row'},h('span',{},b.label),h('span',{},b.label==='기본 점수'?String(b.value):formatSigned(b.value)))),
+    h('div',{class:'calc-row total'},h('span',{},a.name),h('span',{},String(a.score))),
+    a.clamped?h('p',{class:'mute small'},'점수는 0~100 범위로 맞춰요.'):null,
+    h('p',{class:'small calc-meaning'},a.meaning));
   return [h('p',{class:'today-play'},h('b',{},'🎯 오늘의 PLAY '),a.action),
-    h('p',{class:'today-calc'},'점수 계산: '+a.breakdown.map(b=>b.label==='기본'?'기본 '+b.value:b.label+' '+formatSigned(b.value)).join(' · ')+' = '+a.score+(a.clamped?' (0~100 범위로 맞춤)':''))];
+    ...disclosure('today-calc-'+a.key,o=>`왜 ${a.score}점인가요? ${o?'▲':'▼'}`,table,'calc')];
 }
 
 function goToSaju(c:Current):void {

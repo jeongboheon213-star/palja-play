@@ -684,17 +684,49 @@ await check('/today: 공개 콘텐츠·입력·무료 결과·사주 전환과 �
   await waitFor(()=>evaluate("document.getElementById('s-today').classList.contains('on')"));
   const first=await evaluate("document.querySelector('#daily-fortune').innerText");
   assert(await evaluate("document.querySelectorAll('[data-area]').length===5"),'다섯 분야');
-  // V2: 실제 계산 근거(오늘 십성·합충)와 분야별 근거·행동·계산식
-  assert(await evaluate("(()=>{const s=document.getElementById('today-signals');if(!s)return false;const t=s.innerText;return t.includes('오늘 내 사주에 들어온 흐름')&&t.includes('오늘 천간')&&t.includes('비교한 내 기둥')&&s.querySelectorAll('.sig-chip').length>=2})()"),'오늘 사주 신호 영역');
-  assert(await evaluate("document.querySelectorAll('[data-area] .today-why').length===5&&document.querySelectorAll('[data-area] .today-play').length===5&&document.querySelectorAll('[data-area] .today-calc').length===5"),'분야별 근거·PLAY·계산식');
-  assert(await evaluate("Array.from(document.querySelectorAll('[data-area]')).every(b=>{const m=b.querySelector('.today-calc').innerText.match(/= (\\d+)/);return m&&b.querySelector('.stat .v').innerText===m[1]})"),'계산식 결과 = 표시 점수');
+  // V2: 기본 화면은 쉽게(칩·십신 한 줄·분야 근거 한 문장·PLAY), 상세는 접힘(관계·점수표)
+  const fullShot=async(name,width)=>{const lay=await cdp('Page.getLayoutMetrics');const h=Math.ceil(lay.cssContentSize.height);
+    const img=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width,height:h,scale:1}});writeFileSync(`${SHOTS}/${name}.png`,Buffer.from(img.data,'base64'));return h;};
+  assert(await evaluate("(()=>{const s=document.getElementById('today-signals');if(!s)return false;const t=s.innerText;return t.includes('오늘 내 사주에 들어온 흐름')&&s.querySelectorAll('.sig-chip').length>=2&&/연결해서 볼 수 있어요/.test(t)})()"),'오늘 사주 신호 기본 영역');
   assert(await evaluate("document.getElementById('today-signals').compareDocumentPosition(document.querySelector('[data-area]'))&Node.DOCUMENT_POSITION_FOLLOWING"),'신호 영역이 분야 카드보다 먼저');
-  for(const width of [360,390,430,1280]) {
-    await cdp('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<500});await noOverflow();
-    const lay=await cdp('Page.getLayoutMetrics');
-    const img=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width,height:Math.ceil(lay.cssContentSize.height),scale:1}});
-    writeFileSync(`${SHOTS}/today-v2-${width}.png`,Buffer.from(img.data,'base64'));
+  const toggles="Array.from(document.querySelectorAll('#daily-fortune .today-toggle'))";
+  assert(await evaluate(`${toggles}.length===6 && ${toggles}.every(b=>b.tagName==='BUTTON'&&b.getAttribute('aria-expanded')==='false'&&document.getElementById(b.getAttribute('aria-controls')).hidden)`),'기본은 모두 접힘(관계 1 + 분야 5), button·aria');
+  assert(await evaluate("document.querySelectorAll('[data-area] .today-why').length===5&&document.querySelectorAll('[data-area] .today-play').length===5&&Array.from(document.querySelectorAll('[data-area] .today-why')).every(p=>!/합|충/.test(p.innerText))"),'분야 근거 한 문장(합·충 원인화 없음)·PLAY');
+  const defaultH=await fullShot('today-v2-collapsed-390',390);
+  // 상단 관계 상세: 클릭 → 펼침 → 다시 접힘
+  await click('#today-signals .today-toggle');
+  assert(await evaluate("(()=>{const b=document.querySelector('#today-signals .today-toggle'),p=document.getElementById('today-rel-detail');return b.getAttribute('aria-expanded')==='true'&&!p.hidden&&p.innerText.includes('오늘 천간')&&p.innerText.includes('비교한 내 기둥')&&p.innerText.includes('다섯 분야 점수에 똑같이')&&b.innerText.includes('접기')})()"),'관계 상세 펼침');
+  await click('#today-signals .today-toggle');
+  assert(await evaluate("document.getElementById('today-rel-detail').hidden&&document.querySelector('#today-signals .today-toggle').getAttribute('aria-expanded')==='false'"),'관계 상세 다시 접힘');
+  // 키보드: 포커스 후 Enter 로 열고 Space 로 닫기
+  await evaluate("document.querySelector('#today-signals .today-toggle').focus()");
+  for(const [key,code,vk,text] of [['Enter','Enter',13,'\r']]){await cdp('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:vk,text});await cdp('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:vk});}
+  assert(await evaluate("!document.getElementById('today-rel-detail').hidden"),'키보드 Enter 로 펼침');
+  await cdp('Input.dispatchKeyEvent',{type:'keyDown',key:' ',code:'Space',windowsVirtualKeyCode:32,text:' '});await cdp('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space',windowsVirtualKeyCode:32});
+  assert(await evaluate("document.getElementById('today-rel-detail').hidden"),'키보드 Space 로 접힘');
+  // 분야 5개 점수 상세: 각각 펼침 → 표 합계 = 표시 점수 → 다시 접힘
+  for(const key of ['money','love','work','people','condition']) {
+    await click(`#daily-fortune [data-area="${key}"] .today-toggle`);
+    assert(await evaluate(`(()=>{const box=document.querySelector('[data-area="${key}"]'),b=box.querySelector('.today-toggle'),p=document.getElementById('today-calc-${key}');
+      const shown=box.querySelector('.stat .v').innerText.trim();const rows=Array.from(p.querySelectorAll('.calc-row:not(.total) span:last-child')).map(s=>Number(s.innerText.replace('−','-').replace('±','')));
+      const sum=rows.reduce((a,b)=>a+b,0);const total=p.querySelector('.calc-row.total span:last-child').innerText.trim();
+      return b.getAttribute('aria-expanded')==='true'&&!p.hidden&&b.innerText.includes('왜 '+shown+'점인가요')&&total===shown&&(String(Math.max(0,Math.min(100,sum)))===shown)})()`),`${key} 점수 상세 = 표시 점수`);
+    await click(`#daily-fortune [data-area="${key}"] .today-toggle`);
+    assert(await evaluate(`document.getElementById('today-calc-${key}').hidden`),`${key} 다시 접힘`);
   }
+  // 모두 펼친 상태로 폭별 확인: 가로 넘침·칩 잘림 없음, 터치 영역 44px 이상
+  await evaluate(`${toggles}.forEach(b=>b.click())`);
+  assert(await evaluate(`${toggles}.every(b=>b.getAttribute('aria-expanded')==='true')`),'여러 카드 연속 펼침');
+  for(const width of [320,360,390,430,1280]) {
+    await cdp('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<500});await noOverflow();
+    assert(await evaluate("Array.from(document.querySelectorAll('#daily-fortune .sig-chip')).every(c=>c.scrollWidth<=c.clientWidth+1&&c.getBoundingClientRect().right<=c.closest('section').getBoundingClientRect().right+1)"),`${width}px 칩 잘림 없음`);
+    assert(await evaluate(`${toggles}.every(b=>b.getBoundingClientRect().height>=44&&b.getBoundingClientRect().right<=innerWidth)`),`${width}px 버튼 터치 영역`);
+    if([320,360,390,430,1280].includes(width)) await fullShot(`today-v2-expanded-${width}`,width);
+  }
+  await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await evaluate(`${toggles}.forEach(b=>b.click())`);
+  assert(await evaluate(`${toggles}.every(b=>b.getAttribute('aria-expanded')==='false'&&document.getElementById(b.getAttribute('aria-controls')).hidden)`),'모두 다시 접힘');
+  writeFileSync(`${SHOTS}/today-v2-heights.json`,JSON.stringify({collapsed390:defaultH}));
   await viewport('mobile');await shot('today-result-personalized','#daily-fortune');
   assert(await evaluate("document.querySelector('.today-score').getBoundingClientRect().top < document.querySelector('.today-tier').getBoundingClientRect().top && document.querySelector('#daily-fortune').innerText.includes('오늘의 총운') && document.querySelector('#daily-fortune').innerText.includes('오늘의 퀘스트')"),'점수 우선·총운·퀘스트');
   const layout=await cdp('Page.getLayoutMetrics');

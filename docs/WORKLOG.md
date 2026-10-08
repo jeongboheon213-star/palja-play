@@ -414,3 +414,9 @@
 - 테스트: 신규 `tests/daily-explain.test.ts` 11개(결정성, 계산식=점수, 같은 점수 다른 십성→다른 설명, 합·충 반영/미발생 시 미표시, 시간 미상 시주 제외, 성별 무관, 가중치-표현 일치 50칸, 미계산 용어·단정 금지, 묶음 표시, 기존 dailyCopy 불변). 전체 287/287, E2E 51/51(360/390/430/1280 가로 넘침 없음, 계산식 결과=표시 점수), Battle 34/34, 모의 결제 10/10, Cloudflare 빌드·정적 SEO(robots/sitemap/canonical) PASS.
 - 대표 명식 비교: `docs/TODAY_V2_SAMPLES.md`. 화면: `docs/screenshots/today-v2-{360,390,430,1280}.png`.
 - 미확인: 실기기(iPhone Safari 등), 실제 Preview 화면(배포 후 확인), 명리 전문가 문구 검토.
+
+## 2026-10-08 — /today V2 Production 전 UX 보정 (Preview, Claude Code)
+- 계산 LOCK: 수정 전 V2(c23411c)에서 3,060건 기준선 생성·별도 커밋(5ec0f1c) → 수정 후 점수·십신·합충·보정·가중치·TIER·dailyCopy 해시 diff 0 (테스트). reading.ts·dailyCopy·dailyNarratives·엔진·결제·배틀·SEO 파일 Production 대비 변경 0.
+- UX: 상단 흐름 기본은 칩+한 줄, 관계 상세 접기. 분야 카드 근거 한 문장(합·충 원인화 금지)+PLAY, "왜 N점인가요?" 계산표 접기. button+aria-expanded/controls, 키보드 Enter/Space. 자세한 내용 docs/TODAY_V2.md §5.
+- 테스트: 단위 288/288(V2 12개: 기준선 diff 0, 결정성, 계산표=점수, 십신 다르면 문장 다름, 합충 반영/미표시, 시간 미상, 성별 무관, 크기 표현=가중치, 분야 문장 합충 금지, 금지 용어·지출 유도 금지, dailyCopy 불변), E2E 51/51(기본 접힘 6개, 관계/5분야 펼침·접힘, 표 합계=점수, 키보드, 320/360/390/430/1280 모두 펼친 상태 가로 넘침·칩 잘림 없음·버튼 44px+), Battle 34/34, 모의 결제 10/10, Cloudflare 빌드·정적 SEO PASS.
+- 390px 기본(접힘) 전체 4,109px (이전 V2 4,560px).

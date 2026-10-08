@@ -24,10 +24,10 @@ function row(label: string, birthDate: string, birthTime: string | null, gender:
   }).join(' ');
   const contacts = r.contacts.map((x) => `${POS[x.position]}${x.kind}`).join(', ') || '없음';
   const money = ex.areas[0]!;
-  return `| ${label} | ${birthDate} ${birthTime ?? '시간모름'} ${gender === 'male' ? '남' : '여'} | 일간 ${s.dayMaster!.stem} · ${natal} | ${date} ${r.ganji} | ${r.stemRelation} | ${r.branchRelation} | ${contacts} (보정 ${r.adjustment}) | ${r.areas.map((a) => a.score).join('/')} · ${r.score} ${r.tier} | ${ex.signals.map((x) => x.chip).join(' · ')} | ${copy.areas[0]!.headline} / ${money.why} / 🎯 ${money.action} / ${money.breakdown.map((b) => `${b.label} ${b.value}`).join(' ')} |`;
+  return `| ${label} | ${birthDate} ${birthTime ?? '시간모름'} ${gender === 'male' ? '남' : '여'} | 일간 ${s.dayMaster!.stem} · ${natal} | ${date} ${r.ganji} | ${r.stemRelation} | ${r.branchRelation} | ${contacts} (보정 ${r.adjustment}) | ${r.areas.map((a) => a.score).join('/')} · ${r.score} ${r.tier} | ${ex.summary.chips.map((x) => x.label).join(' · ')} | ${copy.areas[0]!.headline} / ${money.basis} / 🎯 ${money.action} / ${money.breakdown.map((b) => `${b.label} ${b.value}`).join(' ')} |`;
 }
 
-const head = '| 구분 | 명식 | 원국 핵심 | 오늘 일진 | 천간 십신 | 지지 십신 | 합·충 | 5분야 점수(재/애/직/관/컨) · 총점 | 표시 신호 | 재물운 최종 문장 (핵심 / 근거 / PLAY / 계산식) |\n|---|---|---|---|---|---|---|---|---|---|';
+const head = '| 구분 | 명식 | 원국 핵심 | 오늘 일진 | 천간 십신 | 지지 십신 | 합·충 | 5분야 점수(재/애/직/관/컨) · 총점 | 표시 신호 | 재물운 기본 화면 (핵심 / 근거 문장 / PLAY) · 펼친 계산표 |\n|---|---|---|---|---|---|---|---|---|---|';
 const rows: string[] = [];
 const DATE = '2026-10-08';
 rows.push(row('대표 샘플', '1990-05-15', '14:20', 'male', DATE));
