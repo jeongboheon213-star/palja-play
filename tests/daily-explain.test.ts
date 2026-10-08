@@ -206,3 +206,18 @@ test('기존 dailyCopy 결과는 V2 설명 추가 후에도 그대로', () => {
   dailyExplain(r, s);
   assert.equal(JSON.stringify(dailyCopy(r, s.dayMaster!.stem)), before);
 });
+
+test('/today V2 본문은 합충을 특정 분야에 배정하지 않고 공통 근거와 실제 점수는 보존한다', () => {
+  for (const {s,r} of SAMPLES) {
+    const before=JSON.stringify(r);
+    const copy=dailyCopy(r,s.dayMaster!.stem,{commonContactsOnly:true});
+    assert(copy.areas.every(a=>!a.meaning.contactFocus));
+    assert.deepEqual(copy.areas.map(a=>a.score),r.areas.map(a=>a.score));
+    assert.equal(copy.evidence.adjustment,r.adjustment);
+    assert.equal(copy.evidence.labels.length,r.contacts.length);
+    const withoutContacts={...r,contacts:[]};
+    assert.deepEqual(copy.areas.map(a=>a.text),dailyCopy(withoutContacts,s.dayMaster!.stem,{commonContactsOnly:true}).areas.map(a=>a.text));
+    assert.equal(JSON.stringify(r),before);
+    assert.deepEqual(copy,dailyCopy(r,s.dayMaster!.stem,{commonContactsOnly:true}));
+  }
+});

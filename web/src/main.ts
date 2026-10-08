@@ -257,7 +257,7 @@ function renderDaily(c: Current, expanded = false): HTMLElement {
     if (!r) { section.append(h('p', {}, '일간을 확정할 수 없어 오늘의 운세를 만들지 않았어요.')); return; }
     section.dataset.date = r.date;
     if(expanded) {
-      const copy=dailyCopy(r,c.result.saju.dayMaster!.stem);
+      const copy=dailyCopy(r,c.result.saju.dayMaster!.stem,{commonContactsOnly:true});
       const ex=dailyExplain(r,c.result.saju);
       section.classList.add('today-detail');
       section.replaceChildren(

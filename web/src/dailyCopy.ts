@@ -28,7 +28,7 @@ function blendFor(r:Reading){
   if(families.has('resource')&&families.has('support'))return 'resourceSupport';
   return null;
 }
-export function dailyCopy(r:Reading,dayMaster:Stem) {
+export function dailyCopy(r:Reading,dayMaster:Stem,options:{commonContactsOnly?:boolean}={}) {
   const [headline,,quest]=THEMES[r.stemRelation];
   const combines=r.contacts.filter(c=>c.kind.endsWith('합')).length;
   const clashes=r.contacts.filter(c=>c.kind.endsWith('충')).length;
@@ -47,7 +47,8 @@ export function dailyCopy(r:Reading,dayMaster:Stem) {
     const focusRelation=pace<=1?secondary:actionRelation;
     const narrative=blend?BLENDS[blend]![i]!:NARRATIVES[actionRelation][i]!;
     const body=blend&&pace===2?NARRATIVES[focusRelation][i]![1]:blend?narrative[1]:NARRATIVES[focusRelation][i]![1];
-    const contactFocus=i===focus;
+    // /today V2 presents contacts as a common adjustment, never as one area's cause.
+    const contactFocus=!options.commonContactsOnly&&i===focus;
     const text=contactFocus?CONTACT_NARRATIVES[contactKind!]![i]!:body;
     const evidenceIds=['day-master:'+dayMaster,'stem:'+r.stemRelation,'branch:'+r.branchRelation,
       ...r.contacts.map(c=>'contact:'+c.position+':'+c.kind),'score:'+a.score,'action:'+actionRelation];

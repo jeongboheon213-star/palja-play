@@ -420,3 +420,8 @@
 - UX: 상단 흐름 기본은 칩+한 줄, 관계 상세 접기. 분야 카드 근거 한 문장(합·충 원인화 금지)+PLAY, "왜 N점인가요?" 계산표 접기. button+aria-expanded/controls, 키보드 Enter/Space. 자세한 내용 docs/TODAY_V2.md §5.
 - 테스트: 단위 288/288(V2 12개: 기준선 diff 0, 결정성, 계산표=점수, 십신 다르면 문장 다름, 합충 반영/미표시, 시간 미상, 성별 무관, 크기 표현=가중치, 분야 문장 합충 금지, 금지 용어·지출 유도 금지, dailyCopy 불변), E2E 51/51(기본 접힘 6개, 관계/5분야 펼침·접힘, 표 합계=점수, 키보드, 320/360/390/430/1280 모두 펼친 상태 가로 넘침·칩 잘림 없음·버튼 44px+), Battle 34/34, 모의 결제 10/10, Cloudflare 빌드·정적 SEO PASS.
 - 390px 기본(접힘) 전체 4,109px (이전 V2 4,560px).
+
+## 2026-10-08 — /today V2 최종 Preview 감사 (Codex)
+- 94feead Preview 실제 브라우저 감사 후, 기존 CONTACT_NARRATIVES가 한 분야 본문을 선택하는 잔여 경로 확인. /today 상세 호출에만 commonContactsOnly 옵션 적용: 십성·점수 기반 기존 본문을 사용하고 합충은 공통 흐름과 계산표로 표시. 기존 호출 기본값과 계산은 보존.
+- npm run check 289/289, V2 고정 기준선 3,060건 diff 0, 독립 2,160건 결정성/점수표 불일치 0. Cloudflare 빌드·정적 SEO PASS. Preview에서만 실제 UI 검증; Production UI 상호작용/DB 기록/결제 금지 유지.
+- 보고서와 새 화면은 작업 환경 reports/deployment에 별도 보관. Production SHA 0bfc80e와 b3eaf88c 배포 및 원래 dirty 파일 62개 보존 확인.
