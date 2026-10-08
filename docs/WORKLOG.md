@@ -425,3 +425,7 @@
 - 94feead Preview 실제 브라우저 감사 후, 기존 CONTACT_NARRATIVES가 한 분야 본문을 선택하는 잔여 경로 확인. /today 상세 호출에만 commonContactsOnly 옵션 적용: 십성·점수 기반 기존 본문을 사용하고 합충은 공통 흐름과 계산표로 표시. 기존 호출 기본값과 계산은 보존.
 - npm run check 289/289, V2 고정 기준선 3,060건 diff 0, 독립 2,160건 결정성/점수표 불일치 0. Cloudflare 빌드·정적 SEO PASS. Preview에서만 실제 UI 검증; Production UI 상호작용/DB 기록/결제 금지 유지.
 - 보고서와 새 화면은 작업 환경 reports/deployment에 별도 보관. Production SHA 0bfc80e와 b3eaf88c 배포 및 원래 dirty 파일 62개 보존 확인.
+
+## 2026-10-08 — Today/free input button mode UX (Preview only)
+- Production 420e37a 기준 별도 integration/today-free-button-ux worktree. show(s-input)에서 todayMode 기준으로 기존 버튼 문구를 동기화하는 1줄 수정. 계산·저장·분석·결제·결과·SEO 변경 없음.
+- 실제 show 함수 실행 회귀 테스트: 일반 입력 및 today→free→retry 3회 문구 동기화. check 290/290, Cloudflare build PASS. Preview 검증 진행; Production push/deploy 금지.

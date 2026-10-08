@@ -43,6 +43,7 @@ function h(tag: string, attrs: Record<string, string | boolean | ((e: Event) => 
 const SCREENS = ["s-landing", "s-input", "s-loading", "s-result", "s-report", "s-today"] as const;
 type Screen = (typeof SCREENS)[number];
 function show(id: Screen): void {
+  if (id === "s-input") $("#calc").textContent = todayMode ? "무료 오늘운세 펼치기" : "내 팔자 펼치기";
   for (const s of SCREENS) document.getElementById(s)?.classList.toggle("on", s === id);
   window.scrollTo(0, 0);
 }
